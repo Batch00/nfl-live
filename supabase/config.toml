@@ -1,0 +1,7 @@
+project_id = "tjazosfjsxqaaspwsgal"
+
+[functions.fetch-nfl-data]
+verify_jwt = false
+
+[functions.export-game-data]
+verify_jwt = false
