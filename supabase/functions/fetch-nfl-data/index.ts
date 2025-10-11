@@ -37,6 +37,17 @@ interface ESPNGame {
       market: string;
       names: string[];
     }>;
+    odds?: Array<{
+      details?: string;
+      overUnder?: number;
+      spread?: number;
+      homeTeamOdds?: {
+        moneyLine?: number;
+      };
+      awayTeamOdds?: {
+        moneyLine?: number;
+      };
+    }>;
   }>;
 }
 
@@ -88,10 +99,53 @@ serve(async (req) => {
           return stats;
         };
 
+        // Extract betting lines
+        const bettingLines: Record<string, any> = {};
+        if (competition.odds && competition.odds.length > 0) {
+          const odds = competition.odds[0];
+          bettingLines.spread = odds.spread || null;
+          bettingLines.overUnder = odds.overUnder || null;
+          bettingLines.homeMoneyline = odds.homeTeamOdds?.moneyLine || null;
+          bettingLines.awayMoneyline = odds.awayTeamOdds?.moneyLine || null;
+          bettingLines.details = odds.details || null;
+        }
+
+        // Fetch play-by-play data
+        let playByPlay: any[] = [];
+        try {
+          const playByPlayResponse = await fetch(
+            `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${game.id}`
+          );
+          if (playByPlayResponse.ok) {
+            const playByPlayData = await playByPlayResponse.json();
+            if (playByPlayData.drives?.previous) {
+              playByPlay = playByPlayData.drives.previous.map((drive: any) => ({
+                id: drive.id,
+                team: drive.team?.abbreviation || null,
+                description: drive.description || null,
+                plays: drive.plays?.map((play: any) => ({
+                  id: play.id,
+                  type: play.type?.text || null,
+                  text: play.text || null,
+                  awayScore: play.awayScore || 0,
+                  homeScore: play.homeScore || 0,
+                  period: play.period?.number || null,
+                  clock: play.clock?.displayValue || null,
+                  scoringPlay: play.scoringPlay || false,
+                  yards: play.statYardage || 0,
+                })) || [],
+              }));
+            }
+          }
+        } catch (playError) {
+          console.error(`Error fetching play-by-play for game ${game.id}:`, playError);
+        }
+
         // Create snapshot
         const snapshot = {
           game_id: game.id,
           game_date: new Date(game.date).toISOString().split('T')[0],
+          game_start_time: game.date,
           home_team: homeTeam.team.displayName,
           away_team: awayTeam.team.displayName,
           home_team_abbr: homeTeam.team.abbreviation,
@@ -105,6 +159,8 @@ serve(async (req) => {
           away_stats: extractStats(awayTeam),
           venue: competition.venue?.fullName || null,
           broadcast: competition.broadcasts?.[0]?.names?.[0] || null,
+          betting_lines: bettingLines,
+          play_by_play: playByPlay,
         };
 
         // Insert snapshot into database

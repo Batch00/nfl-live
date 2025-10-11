@@ -14,6 +14,7 @@ interface GameCardProps {
   gameStatus: string;
   venue?: string | null;
   broadcast?: string | null;
+  gameStartTime?: string | null;
 }
 
 export const GameCard = ({
@@ -28,6 +29,7 @@ export const GameCard = ({
   gameStatus,
   venue,
   broadcast,
+  gameStartTime,
 }: GameCardProps) => {
   const isHomeWinning = homeScore > awayScore;
   const isAwayWinning = awayScore > homeScore;
@@ -46,6 +48,18 @@ export const GameCard = ({
         </div>
         {venue && (
           <p className="text-xs text-muted-foreground mt-1">{venue}</p>
+        )}
+        {gameStartTime && gameStatus.toLowerCase().includes('scheduled') && (
+          <p className="text-xs text-accent mt-1">
+            Starts at {new Date(gameStartTime).toLocaleString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              timeZoneName: 'short'
+            })}
+          </p>
         )}
       </CardHeader>
       <CardContent>

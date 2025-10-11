@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GameCard } from "@/components/GameCard";
 import { StatsPanel } from "@/components/StatsPanel";
+import { PlayByPlayPanel } from "@/components/PlayByPlayPanel";
+import { BettingLinesPanel } from "@/components/BettingLinesPanel";
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw, Database as DatabaseIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +25,9 @@ interface GameSnapshot {
   away_stats: any;
   venue?: string | null;
   broadcast?: string | null;
+  game_start_time?: string | null;
+  betting_lines?: any;
+  play_by_play?: any;
 }
 
 const Index = () => {
@@ -218,12 +223,25 @@ const Index = () => {
                   gameStatus={game.game_status}
                   venue={game.venue}
                   broadcast={game.broadcast}
+                  gameStartTime={game.game_start_time}
+                />
+                <BettingLinesPanel
+                  bettingLines={game.betting_lines || {}}
+                  homeTeam={game.home_team_abbr}
+                  awayTeam={game.away_team_abbr}
+                  gameStatus={game.game_status}
                 />
                 <StatsPanel
                   homeTeam={game.home_team_abbr}
                   awayTeam={game.away_team_abbr}
                   homeStats={game.home_stats}
                   awayStats={game.away_stats}
+                  gameStatus={game.game_status}
+                />
+                <PlayByPlayPanel
+                  playByPlay={game.play_by_play || []}
+                  homeTeam={game.home_team_abbr}
+                  awayTeam={game.away_team_abbr}
                 />
               </div>
             ))}

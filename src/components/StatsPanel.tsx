@@ -5,6 +5,7 @@ interface StatsPanelProps {
   awayTeam: string;
   homeStats: Record<string, string>;
   awayStats: Record<string, string>;
+  gameStatus: string;
 }
 
 export const StatsPanel = ({
@@ -12,6 +13,7 @@ export const StatsPanel = ({
   awayTeam,
   homeStats,
   awayStats,
+  gameStatus,
 }: StatsPanelProps) => {
   // Common stat keys to display
   const statKeys = [
@@ -37,7 +39,14 @@ export const StatsPanel = ({
     key => homeStats[key] || awayStats[key]
   );
 
-  if (availableStats.length === 0) {
+  // For completed games or games in progress, always show the stats section
+  const isGameStarted = !gameStatus.toLowerCase().includes('scheduled');
+  
+  if (availableStats.length === 0 && !isGameStarted) {
+    return null; // Don't show stats panel for scheduled games without data
+  }
+
+  if (availableStats.length === 0 && isGameStarted) {
     return (
       <Card className="bg-card border-border">
         <CardHeader>
@@ -45,7 +54,7 @@ export const StatsPanel = ({
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-8">
-            No statistics available yet
+            Statistics will appear once the game is in progress
           </p>
         </CardContent>
       </Card>

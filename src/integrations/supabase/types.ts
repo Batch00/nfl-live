@@ -20,12 +20,14 @@ export type Database = {
           away_stats: Json | null
           away_team: string
           away_team_abbr: string
+          betting_lines: Json | null
           broadcast: string | null
           clock: string | null
           created_at: string
           drives: Json | null
           game_date: string
           game_id: string
+          game_start_time: string | null
           game_status: string
           home_score: number
           home_stats: Json | null
@@ -33,6 +35,7 @@ export type Database = {
           home_team_abbr: string
           id: string
           last_scoring_team: string | null
+          play_by_play: Json | null
           quarter: number
           venue: string | null
         }
@@ -41,12 +44,14 @@ export type Database = {
           away_stats?: Json | null
           away_team: string
           away_team_abbr: string
+          betting_lines?: Json | null
           broadcast?: string | null
           clock?: string | null
           created_at?: string
           drives?: Json | null
           game_date: string
           game_id: string
+          game_start_time?: string | null
           game_status: string
           home_score?: number
           home_stats?: Json | null
@@ -54,6 +59,7 @@ export type Database = {
           home_team_abbr: string
           id?: string
           last_scoring_team?: string | null
+          play_by_play?: Json | null
           quarter: number
           venue?: string | null
         }
@@ -62,12 +68,14 @@ export type Database = {
           away_stats?: Json | null
           away_team?: string
           away_team_abbr?: string
+          betting_lines?: Json | null
           broadcast?: string | null
           clock?: string | null
           created_at?: string
           drives?: Json | null
           game_date?: string
           game_id?: string
+          game_start_time?: string | null
           game_status?: string
           home_score?: number
           home_stats?: Json | null
@@ -75,6 +83,7 @@ export type Database = {
           home_team_abbr?: string
           id?: string
           last_scoring_team?: string | null
+          play_by_play?: Json | null
           quarter?: number
           venue?: string | null
         }
