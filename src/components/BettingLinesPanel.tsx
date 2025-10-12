@@ -63,7 +63,10 @@ export const BettingLinesPanel = ({
               <div className="space-y-1">
                 {bettingLines.awayMoneyline && (
                   <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                    <span className="text-sm">{awayTeam}</span>
+                    <span className="text-sm flex items-center gap-1">
+                      {awayTeam}
+                      {bettingLines.awayMoneyline < 0 && <TrendingDown className="w-3 h-3 text-accent" />}
+                    </span>
                     <span className="font-bold">
                       {bettingLines.awayMoneyline > 0 ? '+' : ''}
                       {bettingLines.awayMoneyline}
@@ -72,7 +75,10 @@ export const BettingLinesPanel = ({
                 )}
                 {bettingLines.homeMoneyline && (
                   <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                    <span className="text-sm">{homeTeam}</span>
+                    <span className="text-sm flex items-center gap-1">
+                      {homeTeam}
+                      {bettingLines.homeMoneyline < 0 && <TrendingDown className="w-3 h-3 text-accent" />}
+                    </span>
                     <span className="font-bold">
                       {bettingLines.homeMoneyline > 0 ? '+' : ''}
                       {bettingLines.homeMoneyline}
@@ -93,7 +99,7 @@ export const BettingLinesPanel = ({
                   {bettingLines.spread}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {bettingLines.spread > 0 ? homeTeam : awayTeam} favored
+                  {bettingLines.spread < 0 ? homeTeam : awayTeam} favored
                 </div>
               </div>
             </div>

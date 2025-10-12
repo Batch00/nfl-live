@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp, Download } from "lucide-react";
 import { useState } from "react";
 
 interface Play {
@@ -26,10 +27,17 @@ interface PlayByPlayPanelProps {
   playByPlay: Drive[];
   homeTeam: string;
   awayTeam: string;
+  gameId: string;
+  onExport: (gameId: string) => void;
 }
 
-export const PlayByPlayPanel = ({ playByPlay, homeTeam, awayTeam }: PlayByPlayPanelProps) => {
+export const PlayByPlayPanel = ({ playByPlay, homeTeam, awayTeam, gameId, onExport }: PlayByPlayPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleExport = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onExport(gameId);
+  };
 
   if (!playByPlay || playByPlay.length === 0) {
     return null;
@@ -42,11 +50,22 @@ export const PlayByPlayPanel = ({ playByPlay, homeTeam, awayTeam }: PlayByPlayPa
           <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between">
               <CardTitle>Play-by-Play</CardTitle>
-              {isOpen ? (
-                <ChevronUp className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  className="gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </Button>
+                {isOpen ? (
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
             </div>
           </CardHeader>
         </CollapsibleTrigger>

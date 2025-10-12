@@ -63,6 +63,23 @@ serve(async (req) => {
         });
       }
 
+      let csv = '';
+      
+      // Add metadata header if single game
+      if (gameId && data.length > 0) {
+        const game = data[0];
+        csv += `Game Metadata\n`;
+        csv += `Game ID,${game.game_id}\n`;
+        csv += `Date,${game.game_date}\n`;
+        csv += `Home Team,${game.home_team}\n`;
+        csv += `Away Team,${game.away_team}\n`;
+        csv += `Venue,${game.venue || 'N/A'}\n`;
+        csv += `Broadcast,${game.broadcast || 'N/A'}\n`;
+        csv += `Export Time,${new Date().toISOString()}\n`;
+        csv += `\n`;
+        csv += `Game Snapshots Data\n`;
+      }
+
       // CSV headers
       const headers = [
         'id', 'created_at', 'game_id', 'game_date',
@@ -71,7 +88,7 @@ serve(async (req) => {
         'venue', 'broadcast', 'home_stats', 'away_stats', 'drives'
       ];
 
-      let csv = headers.join(',') + '\n';
+      csv += headers.join(',') + '\n';
 
       // CSV rows
       for (const row of data) {

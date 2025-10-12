@@ -131,6 +131,46 @@ const Index = () => {
     }
   };
 
+  const exportPlayByPlay = async (gameId: string) => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/export-play-by-play?game_id=${gameId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `play_by_play_${gameId}_${new Date().toISOString()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export successful",
+        description: "Play-by-play CSV downloaded",
+      });
+    } catch (error) {
+      console.error('Error exporting play-by-play:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to download play-by-play CSV",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchLatestGames();
     
@@ -242,6 +282,8 @@ const Index = () => {
                   playByPlay={game.play_by_play || []}
                   homeTeam={game.home_team_abbr}
                   awayTeam={game.away_team_abbr}
+                  gameId={game.game_id}
+                  onExport={exportPlayByPlay}
                 />
               </div>
             ))}

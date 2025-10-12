@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.export-game-data]
 verify_jwt = false
+
+[functions.export-play-by-play]
+verify_jwt = false

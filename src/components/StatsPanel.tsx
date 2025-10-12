@@ -34,19 +34,23 @@ export const StatsPanel = ({
     firstDowns: 'First Downs',
   };
 
+  // Check if we have any actual stat data (not just empty objects)
+  const hasStatsData = Object.keys(homeStats || {}).length > 0 || Object.keys(awayStats || {}).length > 0;
+  
   // Filter stats that exist in the data
   const availableStats = statKeys.filter(
-    key => homeStats[key] || awayStats[key]
+    key => homeStats?.[key] || awayStats?.[key]
   );
 
-  // For completed games or games in progress, always show the stats section
+  // For scheduled games without data, don't show the panel
   const isGameStarted = !gameStatus.toLowerCase().includes('scheduled');
   
-  if (availableStats.length === 0 && !isGameStarted) {
-    return null; // Don't show stats panel for scheduled games without data
+  if (!isGameStarted && availableStats.length === 0) {
+    return null;
   }
 
-  if (availableStats.length === 0 && isGameStarted) {
+  // For games in progress, show stats if available, otherwise show message
+  if (isGameStarted && availableStats.length === 0) {
     return (
       <Card className="bg-card border-border">
         <CardHeader>
