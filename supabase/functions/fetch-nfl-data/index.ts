@@ -110,16 +110,45 @@ serve(async (req) => {
           bettingLines.details = odds.details || null;
         }
 
-        // Fetch play-by-play data
+        // Fetch detailed game summary for stats and play-by-play data
         let playByPlay: any[] = [];
+        let detailedHomeStats: Record<string, string> = {};
+        let detailedAwayStats: Record<string, string> = {};
+        
         try {
-          const playByPlayResponse = await fetch(
+          const summaryResponse = await fetch(
             `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${game.id}`
           );
-          if (playByPlayResponse.ok) {
-            const playByPlayData = await playByPlayResponse.json();
-            if (playByPlayData.drives?.previous) {
-              playByPlay = playByPlayData.drives.previous.map((drive: any) => ({
+          if (summaryResponse.ok) {
+            const summaryData = await summaryResponse.json();
+            
+            // Extract team statistics from detailed summary
+            if (summaryData.boxscore?.teams) {
+              for (const team of summaryData.boxscore.teams) {
+                const teamStats: Record<string, string> = {};
+                if (team.statistics) {
+                  for (const stat of team.statistics) {
+                    // Map common stat names to readable format
+                    const statName = stat.name.replace(/([A-Z])/g, ' $1').trim();
+                    teamStats[stat.name] = stat.displayValue;
+                  }
+                }
+                
+                if (team.homeAway === 'home') {
+                  detailedHomeStats = teamStats;
+                } else {
+                  detailedAwayStats = teamStats;
+                }
+              }
+              
+              if (Object.keys(detailedHomeStats).length > 0 || Object.keys(detailedAwayStats).length > 0) {
+                console.log(`Extracted team stats for game ${game.id}`);
+              }
+            }
+            
+            // Extract play-by-play data
+            if (summaryData.drives?.previous) {
+              playByPlay = summaryData.drives.previous.map((drive: any) => ({
                 id: drive.id,
                 team: drive.team?.abbreviation || null,
                 description: drive.description || null,
@@ -133,15 +162,21 @@ serve(async (req) => {
                   clock: play.clock?.displayValue || null,
                   scoringPlay: play.scoringPlay || false,
                   yards: play.statYardage || 0,
+                  down: play.start?.down || null,
+                  distance: play.start?.distance || null,
+                  yardLine: play.start?.yardLine || null,
                 })) || [],
               }));
             }
           }
-        } catch (playError) {
-          console.error(`Error fetching play-by-play for game ${game.id}:`, playError);
+        } catch (summaryError) {
+          console.error(`Error fetching summary for game ${game.id}:`, summaryError);
         }
 
-        // Create snapshot
+        // Create snapshot - use detailed stats if available, otherwise fallback to basic stats
+        const finalHomeStats = Object.keys(detailedHomeStats).length > 0 ? detailedHomeStats : extractStats(homeTeam);
+        const finalAwayStats = Object.keys(detailedAwayStats).length > 0 ? detailedAwayStats : extractStats(awayTeam);
+        
         const snapshot = {
           game_id: game.id,
           game_date: new Date(game.date).toISOString().split('T')[0],
@@ -155,8 +190,8 @@ serve(async (req) => {
           quarter: competition.status.period,
           clock: competition.status.displayClock,
           game_status: competition.status.type.description,
-          home_stats: extractStats(homeTeam),
-          away_stats: extractStats(awayTeam),
+          home_stats: finalHomeStats,
+          away_stats: finalAwayStats,
           venue: competition.venue?.fullName || null,
           broadcast: competition.broadcasts?.[0]?.names?.[0] || null,
           betting_lines: bettingLines,

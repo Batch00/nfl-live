@@ -102,14 +102,14 @@ serve(async (req) => {
           rows.push({
             drive_team: drive.team || '',
             drive_description: drive.description || '',
-            play_quarter: play.quarter || '',
+            play_quarter: play.period || '',
             play_clock: play.clock || '',
             play_down: play.down || '',
             play_distance: play.distance || '',
             play_yard_line: play.yardLine || '',
-            play_description: play.description || '',
+            play_description: play.text || '',
             play_type: play.type || '',
-            play_scored: play.scored ? 'Yes' : 'No',
+            play_scored: play.scoringPlay ? 'Yes' : 'No',
             home_score: play.homeScore || 0,
             away_score: play.awayScore || 0,
           });
