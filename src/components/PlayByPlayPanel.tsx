@@ -46,29 +46,31 @@ export const PlayByPlayPanel = ({ playByPlay, homeTeam, awayTeam, gameId, onExpo
   return (
     <Card className="bg-card border-border">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger className="w-full">
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <CardTitle>Play-by-Play</CardTitle>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExport}
-                  className="gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Export CSV
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Play-by-Play</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </Button>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  {isOpen ? (
+                    <ChevronUp className="w-5 h-5" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5" />
+                  )}
                 </Button>
-                {isOpen ? (
-                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                )}
-              </div>
+              </CollapsibleTrigger>
             </div>
-          </CardHeader>
-        </CollapsibleTrigger>
+          </div>
+        </CardHeader>
         <CollapsibleContent>
           <CardContent className="max-h-[500px] overflow-y-auto">
             <div className="space-y-4">
