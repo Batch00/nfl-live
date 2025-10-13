@@ -5,7 +5,8 @@ import { StatsPanel } from "@/components/StatsPanel";
 import { PlayByPlayPanel } from "@/components/PlayByPlayPanel";
 import { BettingLinesPanel } from "@/components/BettingLinesPanel";
 import { Button } from "@/components/ui/button";
-import { Download, RefreshCw, Database as DatabaseIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Download, RefreshCw, Database as DatabaseIcon, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface GameSnapshot {
@@ -34,7 +35,80 @@ const Index = () => {
   const [games, setGames] = useState<GameSnapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+
+  // Sort games: in progress first, then scheduled, then completed (most recent)
+  const sortGames = (gamesList: GameSnapshot[]) => {
+    return [...gamesList].sort((a, b) => {
+      const aStatus = a.game_status.toLowerCase();
+      const bStatus = b.game_status.toLowerCase();
+      
+      const aIsLive = aStatus.includes('in progress') || aStatus.includes('halftime') || 
+                      aStatus.includes('1st') || aStatus.includes('2nd') || 
+                      aStatus.includes('3rd') || aStatus.includes('4th');
+      const bIsLive = bStatus.includes('in progress') || bStatus.includes('halftime') || 
+                      bStatus.includes('1st') || bStatus.includes('2nd') || 
+                      bStatus.includes('3rd') || bStatus.includes('4th');
+      
+      const aIsScheduled = aStatus.includes('scheduled');
+      const bIsScheduled = bStatus.includes('scheduled');
+      
+      // Live games first
+      if (aIsLive && !bIsLive) return -1;
+      if (!aIsLive && bIsLive) return 1;
+      
+      // Then scheduled games
+      if (aIsScheduled && !bIsScheduled) return -1;
+      if (!aIsScheduled && bIsScheduled) return 1;
+      
+      // For scheduled games, sort by start time (earliest first)
+      if (aIsScheduled && bIsScheduled) {
+        const aTime = new Date(a.game_start_time || 0).getTime();
+        const bTime = new Date(b.game_start_time || 0).getTime();
+        return aTime - bTime;
+      }
+      
+      // For completed games, sort by most recent first
+      const aTime = new Date(a.created_at || 0).getTime();
+      const bTime = new Date(b.created_at || 0).getTime();
+      return bTime - aTime;
+    });
+  };
+
+  // Filter games based on search query
+  const filterGames = (gamesList: GameSnapshot[]) => {
+    if (!searchQuery.trim()) return gamesList;
+    
+    const query = searchQuery.toLowerCase();
+    return gamesList.filter(game => 
+      game.home_team.toLowerCase().includes(query) ||
+      game.away_team.toLowerCase().includes(query) ||
+      game.home_team_abbr.toLowerCase().includes(query) ||
+      game.away_team_abbr.toLowerCase().includes(query) ||
+      game.game_id.toLowerCase().includes(query) ||
+      (game.game_start_time && new Date(game.game_start_time).toLocaleDateString().includes(query))
+    );
+  };
+
+  const sortedAndFilteredGames = sortGames(filterGames(games));
+
+  // Categorize games for display
+  const liveGames = sortedAndFilteredGames.filter(g => {
+    const status = g.game_status.toLowerCase();
+    return status.includes('in progress') || status.includes('halftime') || 
+           status.includes('1st') || status.includes('2nd') || 
+           status.includes('3rd') || status.includes('4th');
+  });
+
+  const upcomingGames = sortedAndFilteredGames.filter(g => 
+    g.game_status.toLowerCase().includes('scheduled')
+  );
+
+  const completedGames = sortedAndFilteredGames.filter(g => {
+    const status = g.game_status.toLowerCase();
+    return status.includes('final') || status.includes('completed');
+  });
 
   const fetchLatestGames = async () => {
     try {
@@ -54,7 +128,7 @@ const Index = () => {
         return acc;
       }, []) || [];
 
-      setGames(latestGames);
+      setGames(sortGames(latestGames));
     } catch (error) {
       console.error('Error fetching games:', error);
       toast({
@@ -192,7 +266,7 @@ const Index = () => {
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 NFL Live Data Dashboard
@@ -230,6 +304,17 @@ const Index = () => {
               </Button>
             </div>
           </div>
+          
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by team name, abbreviation, game ID, or date..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-background"
+            />
+          </div>
         </div>
       </header>
 
@@ -247,46 +332,142 @@ const Index = () => {
               Fetch Games
             </Button>
           </div>
+        ) : sortedAndFilteredGames.length === 0 ? (
+          <div className="text-center py-16">
+            <Search className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-2xl font-bold mb-2">No Matches Found</h2>
+            <p className="text-muted-foreground">
+              Try adjusting your search query
+            </p>
+          </div>
         ) : (
-          <div className="space-y-8">
-            {games.map((game) => (
-              <div key={game.id} className="space-y-4">
-                <GameCard
-                  homeTeam={game.home_team}
-                  awayTeam={game.away_team}
-                  homeTeamAbbr={game.home_team_abbr}
-                  awayTeamAbbr={game.away_team_abbr}
-                  homeScore={game.home_score}
-                  awayScore={game.away_score}
-                  quarter={game.quarter}
-                  clock={game.clock}
-                  gameStatus={game.game_status}
-                  venue={game.venue}
-                  broadcast={game.broadcast}
-                  gameStartTime={game.game_start_time}
-                />
-                <BettingLinesPanel
-                  bettingLines={game.betting_lines || {}}
-                  homeTeam={game.home_team_abbr}
-                  awayTeam={game.away_team_abbr}
-                  gameStatus={game.game_status}
-                />
-                <StatsPanel
-                  homeTeam={game.home_team_abbr}
-                  awayTeam={game.away_team_abbr}
-                  homeStats={game.home_stats}
-                  awayStats={game.away_stats}
-                  gameStatus={game.game_status}
-                />
-                <PlayByPlayPanel
-                  playByPlay={game.play_by_play || []}
-                  homeTeam={game.home_team_abbr}
-                  awayTeam={game.away_team_abbr}
-                  gameId={game.game_id}
-                  onExport={exportPlayByPlay}
-                />
-              </div>
-            ))}
+          <div className="space-y-12">
+            {/* Live Games Section */}
+            {liveGames.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-3 h-3 bg-destructive rounded-full animate-pulse"></div>
+                  <h2 className="text-2xl font-bold text-foreground">Live Games</h2>
+                  <span className="text-sm text-muted-foreground">({liveGames.length})</span>
+                </div>
+                <div className="space-y-8">
+                  {liveGames.map((game) => (
+                    <div key={game.id} className="space-y-4 p-6 rounded-lg border border-destructive/20 bg-card/50">
+                      <GameCard
+                        homeTeam={game.home_team}
+                        awayTeam={game.away_team}
+                        homeTeamAbbr={game.home_team_abbr}
+                        awayTeamAbbr={game.away_team_abbr}
+                        homeScore={game.home_score}
+                        awayScore={game.away_score}
+                        quarter={game.quarter}
+                        clock={game.clock}
+                        gameStatus={game.game_status}
+                        venue={game.venue}
+                        broadcast={game.broadcast}
+                        gameStartTime={game.game_start_time}
+                      />
+                      <StatsPanel
+                        homeTeam={game.home_team_abbr}
+                        awayTeam={game.away_team_abbr}
+                        homeStats={game.home_stats}
+                        awayStats={game.away_stats}
+                        gameStatus={game.game_status}
+                      />
+                      <PlayByPlayPanel
+                        playByPlay={game.play_by_play || []}
+                        homeTeam={game.home_team_abbr}
+                        awayTeam={game.away_team_abbr}
+                        gameId={game.game_id}
+                        onExport={exportPlayByPlay}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Upcoming Games Section */}
+            {upcomingGames.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-3 h-3 bg-primary rounded-full"></div>
+                  <h2 className="text-2xl font-bold text-foreground">Upcoming Games</h2>
+                  <span className="text-sm text-muted-foreground">({upcomingGames.length})</span>
+                </div>
+                <div className="space-y-8">
+                  {upcomingGames.map((game) => (
+                    <div key={game.id} className="space-y-4 p-6 rounded-lg border border-primary/20 bg-card/50">
+                      <GameCard
+                        homeTeam={game.home_team}
+                        awayTeam={game.away_team}
+                        homeTeamAbbr={game.home_team_abbr}
+                        awayTeamAbbr={game.away_team_abbr}
+                        homeScore={game.home_score}
+                        awayScore={game.away_score}
+                        quarter={game.quarter}
+                        clock={game.clock}
+                        gameStatus={game.game_status}
+                        venue={game.venue}
+                        broadcast={game.broadcast}
+                        gameStartTime={game.game_start_time}
+                      />
+                      <BettingLinesPanel
+                        bettingLines={game.betting_lines || {}}
+                        homeTeam={game.home_team_abbr}
+                        awayTeam={game.away_team_abbr}
+                        gameStatus={game.game_status}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Completed Games Section */}
+            {completedGames.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-3 h-3 bg-muted-foreground rounded-full"></div>
+                  <h2 className="text-2xl font-bold text-foreground">Completed Games</h2>
+                  <span className="text-sm text-muted-foreground">({completedGames.length})</span>
+                </div>
+                <div className="space-y-8">
+                  {completedGames.map((game) => (
+                    <div key={game.id} className="space-y-4 p-6 rounded-lg border border-border bg-card/30">
+                      <GameCard
+                        homeTeam={game.home_team}
+                        awayTeam={game.away_team}
+                        homeTeamAbbr={game.home_team_abbr}
+                        awayTeamAbbr={game.away_team_abbr}
+                        homeScore={game.home_score}
+                        awayScore={game.away_score}
+                        quarter={game.quarter}
+                        clock={game.clock}
+                        gameStatus={game.game_status}
+                        venue={game.venue}
+                        broadcast={game.broadcast}
+                        gameStartTime={game.game_start_time}
+                      />
+                      <StatsPanel
+                        homeTeam={game.home_team_abbr}
+                        awayTeam={game.away_team_abbr}
+                        homeStats={game.home_stats}
+                        awayStats={game.away_stats}
+                        gameStatus={game.game_status}
+                      />
+                      <PlayByPlayPanel
+                        playByPlay={game.play_by_play || []}
+                        homeTeam={game.home_team_abbr}
+                        awayTeam={game.away_team_abbr}
+                        gameId={game.game_id}
+                        onExport={exportPlayByPlay}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </main>

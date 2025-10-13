@@ -15,7 +15,7 @@ export const StatsPanel = ({
   awayStats,
   gameStatus,
 }: StatsPanelProps) => {
-  // Common stat keys to display
+  // Common stat keys to display - expanded with more metrics
   const statKeys = [
     'totalYards',
     'passingYards',
@@ -23,6 +23,11 @@ export const StatsPanel = ({
     'turnovers',
     'possessionTime',
     'firstDowns',
+    'thirdDownEff',
+    'fourthDownEff',
+    'redZoneAttempts',
+    'penalties',
+    'penaltyYards',
   ];
 
   const statLabels: Record<string, string> = {
@@ -32,6 +37,11 @@ export const StatsPanel = ({
     turnovers: 'Turnovers',
     possessionTime: 'Time of Possession',
     firstDowns: 'First Downs',
+    thirdDownEff: '3rd Down Efficiency',
+    fourthDownEff: '4th Down Efficiency',
+    redZoneAttempts: 'Red Zone Attempts',
+    penalties: 'Penalties',
+    penaltyYards: 'Penalty Yards',
   };
 
   // Check if we have any actual stat data (not just empty objects)
