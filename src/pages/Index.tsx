@@ -4,6 +4,7 @@ import { GameCard } from "@/components/GameCard";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PlayByPlayPanel } from "@/components/PlayByPlayPanel";
 import { BettingLinesPanel } from "@/components/BettingLinesPanel";
+import { LiveBettingOddsPanel } from "@/components/LiveBettingOddsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Download, RefreshCw, Database as DatabaseIcon, Search } from "lucide-react";
@@ -366,6 +367,12 @@ const Index = () => {
                         venue={game.venue}
                         broadcast={game.broadcast}
                         gameStartTime={game.game_start_time}
+                      />
+                      <LiveBettingOddsPanel
+                        bettingLines={game.betting_lines || {}}
+                        homeTeam={game.home_team_abbr}
+                        awayTeam={game.away_team_abbr}
+                        gameStatus={game.game_status}
                       />
                       <StatsPanel
                         homeTeam={game.home_team_abbr}

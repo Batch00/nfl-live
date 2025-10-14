@@ -8,6 +8,10 @@ interface BettingLinesPanelProps {
     homeMoneyline?: number | null;
     awayMoneyline?: number | null;
     details?: string | null;
+    firstHalfSpread?: number | null;
+    firstHalfOverUnder?: number | null;
+    secondHalfSpread?: number | null;
+    secondHalfOverUnder?: number | null;
   };
   homeTeam: string;
   awayTeam: string;
@@ -51,73 +55,143 @@ export const BettingLinesPanel = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-accent" />
-          Pregame Betting Lines
+          Pregame Information
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Moneyline */}
-          {(bettingLines.homeMoneyline || bettingLines.awayMoneyline) && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Moneyline</h4>
-              <div className="space-y-1">
-                {bettingLines.awayMoneyline && (
-                  <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                    <span className="text-sm flex items-center gap-1">
-                      {awayTeam}
-                      {bettingLines.awayMoneyline < 0 && <TrendingDown className="w-3 h-3 text-accent" />}
-                    </span>
-                    <span className="font-bold">
-                      {bettingLines.awayMoneyline > 0 ? '+' : ''}
-                      {bettingLines.awayMoneyline}
-                    </span>
-                  </div>
-                )}
-                {bettingLines.homeMoneyline && (
-                  <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                    <span className="text-sm flex items-center gap-1">
-                      {homeTeam}
-                      {bettingLines.homeMoneyline < 0 && <TrendingDown className="w-3 h-3 text-accent" />}
-                    </span>
-                    <span className="font-bold">
-                      {bettingLines.homeMoneyline > 0 ? '+' : ''}
-                      {bettingLines.homeMoneyline}
-                    </span>
-                  </div>
-                )}
+      <CardContent className="space-y-6">
+        {/* Full Game Lines */}
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+            Full Game
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Moneyline */}
+            {(bettingLines.homeMoneyline || bettingLines.awayMoneyline) && (
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground">Moneyline</h4>
+                <div className="space-y-1">
+                  {bettingLines.awayMoneyline && (
+                    <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                      <span className="text-sm flex items-center gap-1">
+                        {awayTeam}
+                        {bettingLines.awayMoneyline < 0 && <TrendingDown className="w-3 h-3 text-success" />}
+                      </span>
+                      <span className={`font-bold ${bettingLines.awayMoneyline < 0 ? 'text-success' : 'text-destructive'}`}>
+                        {bettingLines.awayMoneyline > 0 ? '+' : ''}
+                        {bettingLines.awayMoneyline}
+                      </span>
+                    </div>
+                  )}
+                  {bettingLines.homeMoneyline && (
+                    <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                      <span className="text-sm flex items-center gap-1">
+                        {homeTeam}
+                        {bettingLines.homeMoneyline < 0 && <TrendingDown className="w-3 h-3 text-success" />}
+                      </span>
+                      <span className={`font-bold ${bettingLines.homeMoneyline < 0 ? 'text-success' : 'text-destructive'}`}>
+                        {bettingLines.homeMoneyline > 0 ? '+' : ''}
+                        {bettingLines.homeMoneyline}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Spread */}
-          {bettingLines.spread !== null && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
-              <div className="p-3 bg-muted/50 rounded text-center">
-                <div className="text-2xl font-bold text-accent">
-                  {bettingLines.spread > 0 ? '+' : ''}
-                  {bettingLines.spread}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {bettingLines.spread < 0 ? homeTeam : awayTeam} favored
+            {/* Spread */}
+            {bettingLines.spread !== null && (
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+                <div className="p-3 bg-muted/50 rounded text-center">
+                  <div className="text-2xl font-bold text-accent">
+                    {bettingLines.spread > 0 ? '+' : ''}
+                    {bettingLines.spread}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {bettingLines.spread < 0 ? homeTeam : awayTeam} favored
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Over/Under */}
-          {bettingLines.overUnder !== null && (
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
-              <div className="p-3 bg-muted/50 rounded text-center">
-                <div className="text-2xl font-bold text-accent">
-                  {bettingLines.overUnder}
+            {/* Over/Under */}
+            {bettingLines.overUnder !== null && (
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+                <div className="p-3 bg-muted/50 rounded text-center">
+                  <div className="text-2xl font-bold text-accent">
+                    {bettingLines.overUnder}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Total Points</div>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">Total Points</div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* First Half Lines */}
+        {(bettingLines.firstHalfSpread !== null || bettingLines.firstHalfOverUnder !== null) && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+              First Half
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {bettingLines.firstHalfSpread !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-xl font-bold text-accent">
+                      {bettingLines.firstHalfSpread > 0 ? '+' : ''}
+                      {bettingLines.firstHalfSpread}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {bettingLines.firstHalfOverUnder !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-xl font-bold text-accent">
+                      {bettingLines.firstHalfOverUnder}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Second Half Lines */}
+        {(bettingLines.secondHalfSpread !== null || bettingLines.secondHalfOverUnder !== null) && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+              Second Half
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {bettingLines.secondHalfSpread !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-xl font-bold text-accent">
+                      {bettingLines.secondHalfSpread > 0 ? '+' : ''}
+                      {bettingLines.secondHalfSpread}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {bettingLines.secondHalfOverUnder !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-xl font-bold text-accent">
+                      {bettingLines.secondHalfOverUnder}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {bettingLines.details && (
           <div className="mt-4 p-2 bg-muted/30 rounded text-xs text-muted-foreground text-center">
