@@ -113,11 +113,12 @@ const Index = () => {
 
   const fetchLatestGames = async () => {
     try {
-      // Get the most recent snapshot for each unique game
+      // Get the most recent snapshot for each unique game (limit to 100 most recent snapshots)
       const { data, error } = await supabase
         .from('game_snapshots')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
 
