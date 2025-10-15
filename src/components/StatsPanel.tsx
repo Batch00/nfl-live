@@ -21,7 +21,36 @@ export const StatsPanel = ({
 }: StatsPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Organized stat categories
+  // Helper to parse penalties from "count-yards" format
+  const parsePenalties = (stats: Record<string, string>) => {
+    const penaltyData = stats?.totalPenaltiesYards;
+    if (!penaltyData) return { count: '—', yards: '—' };
+    const parts = penaltyData.split('-');
+    return { count: parts[0] || '—', yards: parts[1] || '—' };
+  };
+
+  // Helper to parse sacks from "count-yards" format
+  const parseSacks = (stats: Record<string, string>) => {
+    const sacksData = stats?.sacksYardsLost;
+    if (!sacksData) return '—';
+    const parts = sacksData.split('-');
+    return parts[0] || '—';
+  };
+
+  // Helper to calculate yards per completion
+  const calculateYardsPerCompletion = (stats: Record<string, string>) => {
+    const completions = stats?.completionAttempts?.split('/')[0];
+    const passingYards = stats?.netPassingYards;
+    if (!completions || !passingYards) return '—';
+    const comp = parseInt(completions);
+    const yards = parseInt(passingYards);
+    return comp > 0 ? (yards / comp).toFixed(1) : '—';
+  };
+
+  const homePenalties = parsePenalties(homeStats);
+  const awayPenalties = parsePenalties(awayStats);
+
+  // Organized stat categories with correct keys
   const statCategories = {
     basic: [
       { key: 'totalYards', label: 'Total Yards' },
@@ -30,10 +59,9 @@ export const StatsPanel = ({
       { key: 'possessionTime', label: 'Time of Possession' },
     ],
     passing: [
-      { key: 'passingYards', label: 'Passing Yards' },
+      { key: 'netPassingYards', label: 'Passing Yards' },
       { key: 'completionAttempts', label: 'Completions / Attempts' },
-      { key: 'yardsPerPassAttempt', label: 'Yards per Pass Attempt' },
-      { key: 'yardsPerCompletion', label: 'Yards per Completion' },
+      { key: 'yardsPerPass', label: 'Yards per Pass Attempt' },
     ],
     rushing: [
       { key: 'rushingYards', label: 'Rushing Yards' },
@@ -45,35 +73,30 @@ export const StatsPanel = ({
       { key: 'fourthDownEff', label: '4th Down Efficiency' },
       { key: 'redZoneAttempts', label: 'Red Zone Attempts' },
     ],
-    penalties: [
-      { key: 'penalties', label: 'Penalties' },
-      { key: 'penaltyYards', label: 'Penalty Yards' },
-    ],
   };
 
   // Calculate advanced metrics
   const calculateAdvancedMetrics = () => {
-    const homeTotal = parseInt(homeStats?.totalYards || '0');
-    const awayTotal = parseInt(awayStats?.totalYards || '0');
-    const homePlays = parseInt(homeStats?.totalPlays || '0');
-    const awayPlays = parseInt(awayStats?.totalPlays || '0');
-    
     return {
       yardsPerPlay: {
-        home: homePlays > 0 ? (homeTotal / homePlays).toFixed(1) : '—',
-        away: awayPlays > 0 ? (awayTotal / awayPlays).toFixed(1) : '—',
+        home: homeStats?.yardsPerPlay || '—',
+        away: awayStats?.yardsPerPlay || '—',
+      },
+      yardsPerCompletion: {
+        home: calculateYardsPerCompletion(homeStats),
+        away: calculateYardsPerCompletion(awayStats),
       },
       sacks: {
-        home: homeStats?.sacks || '—',
-        away: awayStats?.sacks || '—',
+        home: parseSacks(homeStats),
+        away: parseSacks(awayStats),
       },
       fumblesLost: {
         home: homeStats?.fumblesLost || '—',
         away: awayStats?.fumblesLost || '—',
       },
-      redZoneTD: {
-        home: homeStats?.redZoneTD || '—',
-        away: awayStats?.redZoneTD || '—',
+      interceptions: {
+        home: homeStats?.interceptions || '—',
+        away: awayStats?.interceptions || '—',
       },
     };
   };
@@ -205,17 +228,49 @@ export const StatsPanel = ({
 
             {/* Penalties */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Penalties</h3>
-              {statCategories.penalties.map(renderStatRow)}
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b border-border pb-2">Penalties</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{awayTeam}</span>
+                  <span className="font-medium text-foreground">Penalties (Count)</span>
+                  <span className="text-muted-foreground">{homeTeam}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 text-right font-bold text-lg">
+                    {awayPenalties.count}
+                  </div>
+                  <div className="w-px h-6 bg-border"></div>
+                  <div className="flex-1 text-left font-bold text-lg">
+                    {homePenalties.count}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{awayTeam}</span>
+                  <span className="font-medium text-foreground">Penalty Yards</span>
+                  <span className="text-muted-foreground">{homeTeam}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 text-right font-bold text-lg">
+                    {awayPenalties.yards}
+                  </div>
+                  <div className="w-px h-6 bg-border"></div>
+                  <div className="flex-1 text-left font-bold text-lg">
+                    {homePenalties.yards}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Advanced Metrics */}
             <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Advanced Metrics</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b border-border pb-2">Advanced Metrics</h3>
               {renderAdvancedMetric('Yards per Play', advancedMetrics.yardsPerPlay.home, advancedMetrics.yardsPerPlay.away)}
+              {renderAdvancedMetric('Yards per Completion', advancedMetrics.yardsPerCompletion.home, advancedMetrics.yardsPerCompletion.away)}
               {renderAdvancedMetric('Sacks', advancedMetrics.sacks.home, advancedMetrics.sacks.away)}
+              {renderAdvancedMetric('Interceptions', advancedMetrics.interceptions.home, advancedMetrics.interceptions.away)}
               {renderAdvancedMetric('Fumbles Lost', advancedMetrics.fumblesLost.home, advancedMetrics.fumblesLost.away)}
-              {renderAdvancedMetric('Red Zone TD %', advancedMetrics.redZoneTD.home, advancedMetrics.redZoneTD.away)}
             </div>
           </CardContent>
         </CollapsibleContent>
