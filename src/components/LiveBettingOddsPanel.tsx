@@ -34,23 +34,26 @@ export const LiveBettingOddsPanel = ({
   }
 
   // Check if we have any live betting data
-  const hasData = bettingLines.liveSpread !== null || 
-                  bettingLines.liveOverUnder !== null || 
-                  bettingLines.liveHomeMoneyline !== null || 
-                  bettingLines.liveAwayMoneyline !== null;
+  const hasData = bettingLines.liveSpread !== undefined && bettingLines.liveSpread !== null || 
+                  bettingLines.liveOverUnder !== undefined && bettingLines.liveOverUnder !== null || 
+                  bettingLines.liveHomeMoneyline !== undefined && bettingLines.liveHomeMoneyline !== null || 
+                  bettingLines.liveAwayMoneyline !== undefined && bettingLines.liveAwayMoneyline !== null;
 
   if (!hasData) {
     return (
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-destructive animate-pulse" />
+            <Activity className="w-5 h-5 text-warning" />
             Live Betting Odds
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-4">
-            Live betting odds not available
+            Odds currently unavailable
+          </p>
+          <p className="text-xs text-muted-foreground text-center">
+            Live betting data will appear when available from the feed
           </p>
         </CardContent>
       </Card>

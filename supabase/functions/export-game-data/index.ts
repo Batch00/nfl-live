@@ -63,53 +63,152 @@ serve(async (req) => {
         });
       }
 
-      let csv = '';
-      
-      // Add metadata header if single game
-      if (gameId && data.length > 0) {
-        const game = data[0];
-        csv += `Game Metadata\n`;
-        csv += `Game ID,${game.game_id}\n`;
-        csv += `Date,${game.game_date}\n`;
-        csv += `Home Team,${game.home_team}\n`;
-        csv += `Away Team,${game.away_team}\n`;
-        csv += `Venue,${game.venue || 'N/A'}\n`;
-        csv += `Broadcast,${game.broadcast || 'N/A'}\n`;
-        csv += `Export Time,${new Date().toISOString()}\n`;
-        csv += `\n`;
-        csv += `Game Snapshots Data\n`;
+      // Get only the latest snapshot per game
+      const latestGamesMap = new Map();
+      for (const snapshot of data) {
+        if (!latestGamesMap.has(snapshot.game_id)) {
+          latestGamesMap.set(snapshot.game_id, snapshot);
+        }
       }
+      const latestGames = Array.from(latestGamesMap.values());
 
-      // CSV headers
-      const headers = [
-        'id', 'created_at', 'game_id', 'game_date',
-        'home_team', 'away_team', 'home_team_abbr', 'away_team_abbr',
-        'home_score', 'away_score', 'quarter', 'clock', 'game_status',
-        'venue', 'broadcast', 'home_stats', 'away_stats', 'drives'
+      // Create flattened CSV with one row per team per game
+      const csvHeaders = [
+        'Game ID', 'Team', 'Opponent', 'Status', 'Quarter', 'Clock', 'Venue', 'Broadcast', 'Game Date',
+        'Team Score', 'Opponent Score',
+        'Passing Yards', 'Completions', 'Attempts', 'Yards/Attempt', 'Yards/Completion',
+        'Rushing Yards', 'Rush Attempts', 'Yards/Rush',
+        'Total Yards', 'Total Plays', 'Yards/Play',
+        'First Downs', 'First Downs Passing', 'First Downs Rushing', 'First Downs Penalty',
+        'Third Down Conversions', 'Fourth Down Conversions',
+        'Penalties', 'Penalty Yards',
+        'Turnovers', 'Interceptions', 'Fumbles Lost',
+        'Sacks', 'Sacks Yards Lost',
+        'Red Zone Attempts', 'Red Zone Conversions',
+        'Possession Time'
       ];
 
-      csv += headers.join(',') + '\n';
+      let csv = csvHeaders.join(',') + '\n';
 
-      // CSV rows
-      for (const row of data) {
-        const values = headers.map(header => {
-          let value = row[header];
-          if (value === null || value === undefined) {
-            return '';
-          }
-          if (typeof value === 'object') {
-            value = JSON.stringify(value).replace(/"/g, '""');
-          }
-          return `"${value}"`;
-        });
-        csv += values.join(',') + '\n';
+      // Helper function to safely get stat value
+      const getStat = (stats: any, key: string, defaultValue: string = '—'): string => {
+        if (!stats || stats[key] === null || stats[key] === undefined) return defaultValue;
+        return String(stats[key]);
+      };
+
+      // Helper to parse compound values like "7-14" or "2-14"
+      const parseCompound = (value: string | null | undefined, index: number): string => {
+        if (!value) return '—';
+        const parts = String(value).split('-');
+        return parts[index] || '—';
+      };
+
+      // Process each game and create two rows (one for each team)
+      for (const game of latestGames) {
+        const homeStats = game.home_stats || {};
+        const awayStats = game.away_stats || {};
+
+        // Calculate derived stats
+        const calcYardsPerCompletion = (netYards: any, completions: any): string => {
+          const yards = parseFloat(netYards);
+          const comps = parseFloat(String(completions).split('/')[0]);
+          if (yards && comps) return (yards / comps).toFixed(1);
+          return '—';
+        };
+
+        // Away team row
+        const awayRow = [
+          game.game_id,
+          game.away_team,
+          game.home_team,
+          game.game_status,
+          game.quarter || '0',
+          game.clock || '—',
+          game.venue || '—',
+          game.broadcast || '—',
+          game.game_date,
+          game.away_score,
+          game.home_score,
+          getStat(awayStats, 'netPassingYards'),
+          parseCompound(getStat(awayStats, 'completionAttempts'), 0),
+          parseCompound(getStat(awayStats, 'completionAttempts'), 1),
+          getStat(awayStats, 'yardsPerPass'),
+          calcYardsPerCompletion(getStat(awayStats, 'netPassingYards'), getStat(awayStats, 'completionAttempts')),
+          getStat(awayStats, 'rushingYards'),
+          getStat(awayStats, 'rushingAttempts'),
+          getStat(awayStats, 'yardsPerRushAttempt'),
+          getStat(awayStats, 'totalYards'),
+          getStat(awayStats, 'totalOffensivePlays'),
+          getStat(awayStats, 'yardsPerPlay'),
+          getStat(awayStats, 'firstDowns'),
+          getStat(awayStats, 'firstDownsPassing'),
+          getStat(awayStats, 'firstDownsRushing'),
+          getStat(awayStats, 'firstDownsPenalty'),
+          getStat(awayStats, 'thirdDownEff'),
+          getStat(awayStats, 'fourthDownEff'),
+          parseCompound(getStat(awayStats, 'totalPenaltiesYards'), 0),
+          parseCompound(getStat(awayStats, 'totalPenaltiesYards'), 1),
+          getStat(awayStats, 'turnovers'),
+          getStat(awayStats, 'interceptions'),
+          getStat(awayStats, 'fumblesLost'),
+          parseCompound(getStat(awayStats, 'sacksYardsLost'), 0),
+          parseCompound(getStat(awayStats, 'sacksYardsLost'), 1),
+          parseCompound(getStat(awayStats, 'redZoneAttempts'), 1),
+          parseCompound(getStat(awayStats, 'redZoneAttempts'), 0),
+          getStat(awayStats, 'possessionTime')
+        ].map(v => `"${v}"`);
+
+        // Home team row
+        const homeRow = [
+          game.game_id,
+          game.home_team,
+          game.away_team,
+          game.game_status,
+          game.quarter || '0',
+          game.clock || '—',
+          game.venue || '—',
+          game.broadcast || '—',
+          game.game_date,
+          game.home_score,
+          game.away_score,
+          getStat(homeStats, 'netPassingYards'),
+          parseCompound(getStat(homeStats, 'completionAttempts'), 0),
+          parseCompound(getStat(homeStats, 'completionAttempts'), 1),
+          getStat(homeStats, 'yardsPerPass'),
+          calcYardsPerCompletion(getStat(homeStats, 'netPassingYards'), getStat(homeStats, 'completionAttempts')),
+          getStat(homeStats, 'rushingYards'),
+          getStat(homeStats, 'rushingAttempts'),
+          getStat(homeStats, 'yardsPerRushAttempt'),
+          getStat(homeStats, 'totalYards'),
+          getStat(homeStats, 'totalOffensivePlays'),
+          getStat(homeStats, 'yardsPerPlay'),
+          getStat(homeStats, 'firstDowns'),
+          getStat(homeStats, 'firstDownsPassing'),
+          getStat(homeStats, 'firstDownsRushing'),
+          getStat(homeStats, 'firstDownsPenalty'),
+          getStat(homeStats, 'thirdDownEff'),
+          getStat(homeStats, 'fourthDownEff'),
+          parseCompound(getStat(homeStats, 'totalPenaltiesYards'), 0),
+          parseCompound(getStat(homeStats, 'totalPenaltiesYards'), 1),
+          getStat(homeStats, 'turnovers'),
+          getStat(homeStats, 'interceptions'),
+          getStat(homeStats, 'fumblesLost'),
+          parseCompound(getStat(homeStats, 'sacksYardsLost'), 0),
+          parseCompound(getStat(homeStats, 'sacksYardsLost'), 1),
+          parseCompound(getStat(homeStats, 'redZoneAttempts'), 1),
+          parseCompound(getStat(homeStats, 'redZoneAttempts'), 0),
+          getStat(homeStats, 'possessionTime')
+        ].map(v => `"${v}"`);
+
+        csv += awayRow.join(',') + '\n';
+        csv += homeRow.join(',') + '\n';
       }
 
       return new Response(csv, {
         headers: {
           ...corsHeaders,
           'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="nfl_data_${new Date().toISOString()}.csv"`,
+          'Content-Disposition': `attachment; filename="nfl_team_stats_${new Date().toISOString().split('T')[0]}.csv"`,
         },
         status: 200,
       });

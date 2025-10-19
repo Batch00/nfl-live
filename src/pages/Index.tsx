@@ -113,12 +113,42 @@ const Index = () => {
 
   const fetchLatestGames = async () => {
     try {
-      // Get the most recent snapshot for each unique game (limit to 100 most recent snapshots)
+      // Calculate date range for current NFL week (Tuesday to Monday)
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      
+      // NFL week starts on Tuesday
+      // Calculate days since last Tuesday
+      let daysSinceTuesday;
+      if (dayOfWeek >= 2) { // Tuesday (2) to Saturday (6)
+        daysSinceTuesday = dayOfWeek - 2;
+      } else { // Sunday (0) or Monday (1)
+        daysSinceTuesday = dayOfWeek + 5; // 5 days back from Sunday, 6 from Monday
+      }
+      
+      // Start of current week (last Tuesday at 00:00)
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - daysSinceTuesday);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      // End of current week (next Monday at 23:59)
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      console.log('Fetching games for current week:', {
+        start: weekStart.toISOString(),
+        end: weekEnd.toISOString()
+      });
+
+      // Get the most recent snapshot for each unique game from current week
       const { data, error } = await supabase
         .from('game_snapshots')
         .select('*')
+        .gte('game_date', weekStart.toISOString().split('T')[0])
+        .lte('game_date', weekEnd.toISOString().split('T')[0])
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (error) throw error;
 
@@ -130,6 +160,7 @@ const Index = () => {
         return acc;
       }, []) || [];
 
+      console.log(`Found ${latestGames.length} games for current week`);
       setGames(sortGames(latestGames));
     } catch (error) {
       console.error('Error fetching games:', error);
