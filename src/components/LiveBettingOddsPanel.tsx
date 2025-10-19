@@ -3,10 +3,16 @@ import { TrendingUp, TrendingDown, Activity } from "lucide-react";
 
 interface LiveBettingOddsPanelProps {
   bettingLines: {
+    // Live odds (preferred)
     liveSpread?: number | null;
     liveOverUnder?: number | null;
     liveHomeMoneyline?: number | null;
     liveAwayMoneyline?: number | null;
+    // Pregame odds (fallback)
+    spread?: number | null;
+    overUnder?: number | null;
+    homeMoneyline?: number | null;
+    awayMoneyline?: number | null;
     winProbability?: {
       home?: number | null;
       away?: number | null;
@@ -33,11 +39,18 @@ export const LiveBettingOddsPanel = ({
     return null;
   }
 
-  // Check if we have any live betting data
-  const hasData = bettingLines.liveSpread !== undefined && bettingLines.liveSpread !== null || 
-                  bettingLines.liveOverUnder !== undefined && bettingLines.liveOverUnder !== null || 
-                  bettingLines.liveHomeMoneyline !== undefined && bettingLines.liveHomeMoneyline !== null || 
-                  bettingLines.liveAwayMoneyline !== undefined && bettingLines.liveAwayMoneyline !== null;
+  // Try to get live odds first, fallback to pregame odds
+  const spread = bettingLines.liveSpread ?? bettingLines.spread;
+  const overUnder = bettingLines.liveOverUnder ?? bettingLines.overUnder;
+  const homeMoneyline = bettingLines.liveHomeMoneyline ?? bettingLines.homeMoneyline;
+  const awayMoneyline = bettingLines.liveAwayMoneyline ?? bettingLines.awayMoneyline;
+  const winProb = bettingLines.winProbability;
+
+  // Check if we have any betting data
+  const hasData = spread !== undefined && spread !== null || 
+                  overUnder !== undefined && overUnder !== null || 
+                  homeMoneyline !== undefined && homeMoneyline !== null || 
+                  awayMoneyline !== undefined && awayMoneyline !== null;
 
   if (!hasData) {
     return (
@@ -53,50 +66,60 @@ export const LiveBettingOddsPanel = ({
             Odds currently unavailable
           </p>
           <p className="text-xs text-muted-foreground text-center">
-            Live betting data will appear when available from the feed
+            ESPN API does not provide live betting odds. Consider integrating with a dedicated odds provider API for live betting data.
           </p>
         </CardContent>
       </Card>
     );
   }
 
+  // Determine if we're showing pregame odds (fallback) or live odds
+  const isPreGameOdds = !bettingLines.liveSpread && bettingLines.spread !== undefined;
+
   return (
     <Card className="bg-gradient-to-br from-card to-destructive/5 border-destructive/20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Activity className="w-5 h-5 text-destructive animate-pulse" />
-          Live Betting Odds
-          <span className="text-xs font-normal text-muted-foreground ml-auto">Updates periodically</span>
+          {isPreGameOdds ? 'Opening Odds' : 'Live Betting Odds'}
+          <span className="text-xs font-normal text-muted-foreground ml-auto">
+            {isPreGameOdds ? 'Pregame lines' : 'Updates periodically'}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {isPreGameOdds && (
+          <div className="mb-3 p-2 bg-warning/10 border border-warning/20 rounded text-xs text-warning">
+            Note: Live odds unavailable from ESPN API. Showing opening lines for reference.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Live Moneyline */}
-          {(bettingLines.liveHomeMoneyline || bettingLines.liveAwayMoneyline) && (
+          {/* Moneyline */}
+          {(homeMoneyline || awayMoneyline) && (
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Live Moneyline</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground">Moneyline</h4>
               <div className="space-y-1">
-                {bettingLines.liveAwayMoneyline && (
+                {awayMoneyline && (
                   <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
                     <span className="text-sm flex items-center gap-1">
                       {awayTeam}
-                      {bettingLines.liveAwayMoneyline < 0 && <TrendingDown className="w-3 h-3 text-success" />}
+                      {awayMoneyline < 0 && <TrendingDown className="w-3 h-3 text-success" />}
                     </span>
-                    <span className={`font-bold ${bettingLines.liveAwayMoneyline < 0 ? 'text-success' : 'text-destructive'}`}>
-                      {bettingLines.liveAwayMoneyline > 0 ? '+' : ''}
-                      {bettingLines.liveAwayMoneyline}
+                    <span className={`font-bold ${awayMoneyline < 0 ? 'text-success' : 'text-destructive'}`}>
+                      {awayMoneyline > 0 ? '+' : ''}
+                      {awayMoneyline}
                     </span>
                   </div>
                 )}
-                {bettingLines.liveHomeMoneyline && (
+                {homeMoneyline && (
                   <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
                     <span className="text-sm flex items-center gap-1">
                       {homeTeam}
-                      {bettingLines.liveHomeMoneyline < 0 && <TrendingDown className="w-3 h-3 text-success" />}
+                      {homeMoneyline < 0 && <TrendingDown className="w-3 h-3 text-success" />}
                     </span>
-                    <span className={`font-bold ${bettingLines.liveHomeMoneyline < 0 ? 'text-success' : 'text-destructive'}`}>
-                      {bettingLines.liveHomeMoneyline > 0 ? '+' : ''}
-                      {bettingLines.liveHomeMoneyline}
+                    <span className={`font-bold ${homeMoneyline < 0 ? 'text-success' : 'text-destructive'}`}>
+                      {homeMoneyline > 0 ? '+' : ''}
+                      {homeMoneyline}
                     </span>
                   </div>
                 )}
@@ -104,29 +127,29 @@ export const LiveBettingOddsPanel = ({
             </div>
           )}
 
-          {/* Live Spread */}
-          {bettingLines.liveSpread !== null && (
+          {/* Spread */}
+          {spread !== null && spread !== undefined && (
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Live Spread</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
               <div className="p-3 bg-muted/50 rounded text-center">
                 <div className="text-2xl font-bold text-accent">
-                  {bettingLines.liveSpread > 0 ? '+' : ''}
-                  {bettingLines.liveSpread}
+                  {spread > 0 ? '+' : ''}
+                  {spread}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {bettingLines.liveSpread < 0 ? homeTeam : awayTeam} favored
+                  {spread < 0 ? homeTeam : awayTeam} favored
                 </div>
               </div>
             </div>
           )}
 
-          {/* Live Over/Under */}
-          {bettingLines.liveOverUnder !== null && (
+          {/* Over/Under */}
+          {overUnder !== null && overUnder !== undefined && (
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Live O/U</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground">O/U</h4>
               <div className="p-3 bg-muted/50 rounded text-center">
                 <div className="text-2xl font-bold text-accent">
-                  {bettingLines.liveOverUnder}
+                  {overUnder}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">Total Points</div>
               </div>
@@ -135,20 +158,20 @@ export const LiveBettingOddsPanel = ({
         </div>
 
         {/* Win Probability */}
-        {(bettingLines.winProbability?.home || bettingLines.winProbability?.away) && (
+        {(winProb?.home || winProb?.away) && (
           <div className="mt-4 p-3 bg-muted/30 rounded">
             <h4 className="font-semibold text-sm text-muted-foreground mb-2">Win Probability</h4>
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 text-center">
                 <div className="text-lg font-bold text-foreground">
-                  {bettingLines.winProbability.away}%
+                  {winProb.away}%
                 </div>
                 <div className="text-xs text-muted-foreground">{awayTeam}</div>
               </div>
               <div className="w-px h-8 bg-border"></div>
               <div className="flex-1 text-center">
                 <div className="text-lg font-bold text-foreground">
-                  {bettingLines.winProbability.home}%
+                  {winProb.home}%
                 </div>
                 <div className="text-xs text-muted-foreground">{homeTeam}</div>
               </div>

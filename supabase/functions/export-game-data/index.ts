@@ -91,16 +91,31 @@ serve(async (req) => {
       let csv = csvHeaders.join(',') + '\n';
 
       // Helper function to safely get stat value
-      const getStat = (stats: any, key: string, defaultValue: string = '—'): string => {
+      // Returns empty string for missing data (better for Excel)
+      const getStat = (stats: any, key: string, defaultValue: string = ''): string => {
         if (!stats || stats[key] === null || stats[key] === undefined) return defaultValue;
         return String(stats[key]);
       };
 
       // Helper to parse compound values like "7-14" or "2-14"
+      // Prepends single quote to prevent Excel date formatting
       const parseCompound = (value: string | null | undefined, index: number): string => {
-        if (!value) return '—';
+        if (!value) return '';
         const parts = String(value).split('-');
-        return parts[index] || '—';
+        const result = parts[index] || '';
+        // Add single quote prefix to prevent Excel from treating as date
+        return result ? `'${result}` : '';
+      };
+      
+      // Helper to format fraction values (like "15/20") to prevent Excel date formatting
+      const formatFraction = (value: string | null | undefined): string => {
+        if (!value) return '';
+        const str = String(value);
+        // If it contains a slash, prepend with single quote to prevent date formatting
+        if (str.includes('/') || str.includes('-')) {
+          return `'${str}`;
+        }
+        return str;
       };
 
       // Process each game and create two rows (one for each team)
@@ -110,10 +125,13 @@ serve(async (req) => {
 
         // Calculate derived stats
         const calcYardsPerCompletion = (netYards: any, completions: any): string => {
+          if (!netYards || !completions) return '';
           const yards = parseFloat(netYards);
           const comps = parseFloat(String(completions).split('/')[0]);
-          if (yards && comps) return (yards / comps).toFixed(1);
-          return '—';
+          if (yards && comps && !isNaN(yards) && !isNaN(comps)) {
+            return (yards / comps).toFixed(1);
+          }
+          return '';
         };
 
         // Away team row
@@ -123,15 +141,15 @@ serve(async (req) => {
           game.home_team,
           game.game_status,
           game.quarter || '0',
-          game.clock || '—',
-          game.venue || '—',
-          game.broadcast || '—',
+          game.clock || '',
+          game.venue || '',
+          game.broadcast || '',
           game.game_date,
-          game.away_score,
-          game.home_score,
+          game.away_score || '0',
+          game.home_score || '0',
           getStat(awayStats, 'netPassingYards'),
-          parseCompound(getStat(awayStats, 'completionAttempts'), 0),
-          parseCompound(getStat(awayStats, 'completionAttempts'), 1),
+          formatFraction(getStat(awayStats, 'completionAttempts')?.split('-')[0]),
+          formatFraction(getStat(awayStats, 'completionAttempts')?.split('-')[1]),
           getStat(awayStats, 'yardsPerPass'),
           calcYardsPerCompletion(getStat(awayStats, 'netPassingYards'), getStat(awayStats, 'completionAttempts')),
           getStat(awayStats, 'rushingYards'),
@@ -144,17 +162,17 @@ serve(async (req) => {
           getStat(awayStats, 'firstDownsPassing'),
           getStat(awayStats, 'firstDownsRushing'),
           getStat(awayStats, 'firstDownsPenalty'),
-          getStat(awayStats, 'thirdDownEff'),
-          getStat(awayStats, 'fourthDownEff'),
-          parseCompound(getStat(awayStats, 'totalPenaltiesYards'), 0),
-          parseCompound(getStat(awayStats, 'totalPenaltiesYards'), 1),
+          formatFraction(getStat(awayStats, 'thirdDownEff')),
+          formatFraction(getStat(awayStats, 'fourthDownEff')),
+          formatFraction(getStat(awayStats, 'totalPenaltiesYards')?.split('-')[0]),
+          formatFraction(getStat(awayStats, 'totalPenaltiesYards')?.split('-')[1]),
           getStat(awayStats, 'turnovers'),
           getStat(awayStats, 'interceptions'),
           getStat(awayStats, 'fumblesLost'),
-          parseCompound(getStat(awayStats, 'sacksYardsLost'), 0),
-          parseCompound(getStat(awayStats, 'sacksYardsLost'), 1),
-          parseCompound(getStat(awayStats, 'redZoneAttempts'), 1),
-          parseCompound(getStat(awayStats, 'redZoneAttempts'), 0),
+          formatFraction(getStat(awayStats, 'sacksYardsLost')?.split('-')[0]),
+          formatFraction(getStat(awayStats, 'sacksYardsLost')?.split('-')[1]),
+          formatFraction(getStat(awayStats, 'redZoneAttempts')?.split('-')[1]),
+          formatFraction(getStat(awayStats, 'redZoneAttempts')?.split('-')[0]),
           getStat(awayStats, 'possessionTime')
         ].map(v => `"${v}"`);
 
@@ -165,15 +183,15 @@ serve(async (req) => {
           game.away_team,
           game.game_status,
           game.quarter || '0',
-          game.clock || '—',
-          game.venue || '—',
-          game.broadcast || '—',
+          game.clock || '',
+          game.venue || '',
+          game.broadcast || '',
           game.game_date,
-          game.home_score,
-          game.away_score,
+          game.home_score || '0',
+          game.away_score || '0',
           getStat(homeStats, 'netPassingYards'),
-          parseCompound(getStat(homeStats, 'completionAttempts'), 0),
-          parseCompound(getStat(homeStats, 'completionAttempts'), 1),
+          formatFraction(getStat(homeStats, 'completionAttempts')?.split('-')[0]),
+          formatFraction(getStat(homeStats, 'completionAttempts')?.split('-')[1]),
           getStat(homeStats, 'yardsPerPass'),
           calcYardsPerCompletion(getStat(homeStats, 'netPassingYards'), getStat(homeStats, 'completionAttempts')),
           getStat(homeStats, 'rushingYards'),
@@ -186,17 +204,17 @@ serve(async (req) => {
           getStat(homeStats, 'firstDownsPassing'),
           getStat(homeStats, 'firstDownsRushing'),
           getStat(homeStats, 'firstDownsPenalty'),
-          getStat(homeStats, 'thirdDownEff'),
-          getStat(homeStats, 'fourthDownEff'),
-          parseCompound(getStat(homeStats, 'totalPenaltiesYards'), 0),
-          parseCompound(getStat(homeStats, 'totalPenaltiesYards'), 1),
+          formatFraction(getStat(homeStats, 'thirdDownEff')),
+          formatFraction(getStat(homeStats, 'fourthDownEff')),
+          formatFraction(getStat(homeStats, 'totalPenaltiesYards')?.split('-')[0]),
+          formatFraction(getStat(homeStats, 'totalPenaltiesYards')?.split('-')[1]),
           getStat(homeStats, 'turnovers'),
           getStat(homeStats, 'interceptions'),
           getStat(homeStats, 'fumblesLost'),
-          parseCompound(getStat(homeStats, 'sacksYardsLost'), 0),
-          parseCompound(getStat(homeStats, 'sacksYardsLost'), 1),
-          parseCompound(getStat(homeStats, 'redZoneAttempts'), 1),
-          parseCompound(getStat(homeStats, 'redZoneAttempts'), 0),
+          formatFraction(getStat(homeStats, 'sacksYardsLost')?.split('-')[0]),
+          formatFraction(getStat(homeStats, 'sacksYardsLost')?.split('-')[1]),
+          formatFraction(getStat(homeStats, 'redZoneAttempts')?.split('-')[1]),
+          formatFraction(getStat(homeStats, 'redZoneAttempts')?.split('-')[0]),
           getStat(homeStats, 'possessionTime')
         ].map(v => `"${v}"`);
 
