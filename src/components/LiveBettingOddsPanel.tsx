@@ -63,10 +63,7 @@ export const LiveBettingOddsPanel = ({
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-4">
-            Odds currently unavailable
-          </p>
-          <p className="text-xs text-muted-foreground text-center">
-            ESPN API does not provide live betting odds. Consider integrating with a dedicated odds provider API for live betting data.
+            Live odds currently unavailable.
           </p>
         </CardContent>
       </Card>
@@ -90,7 +87,7 @@ export const LiveBettingOddsPanel = ({
       <CardContent>
         {isPreGameOdds && (
           <div className="mb-3 p-2 bg-warning/10 border border-warning/20 rounded text-xs text-warning">
-            Note: Live odds unavailable from ESPN API. Showing opening lines for reference.
+            Live odds unavailable. Showing pregame lines for reference.
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

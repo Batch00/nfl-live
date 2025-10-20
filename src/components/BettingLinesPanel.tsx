@@ -24,8 +24,9 @@ export const BettingLinesPanel = ({
   awayTeam,
   gameStatus 
 }: BettingLinesPanelProps) => {
-  // Only show betting lines for scheduled games
-  if (!gameStatus.toLowerCase().includes('scheduled')) {
+  // Only show betting lines for scheduled/pregame games
+  const status = gameStatus.toLowerCase();
+  if (!status.includes('scheduled') && !status.includes('pregame')) {
     return null;
   }
 
@@ -130,74 +131,58 @@ export const BettingLinesPanel = ({
         </div>
 
         {/* First Half Lines */}
-        {(bettingLines.firstHalfSpread !== null || bettingLines.firstHalfOverUnder !== null) && (
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
-              First Half
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {bettingLines.firstHalfSpread !== null && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
-                  <div className="p-3 bg-muted/50 rounded text-center">
-                    <div className="text-xl font-bold text-accent">
-                      {bettingLines.firstHalfSpread > 0 ? '+' : ''}
-                      {bettingLines.firstHalfSpread}
-                    </div>
-                  </div>
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+            First Half
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+              <div className="p-3 bg-muted/50 rounded text-center">
+                <div className="text-xl font-bold text-muted-foreground">
+                  {bettingLines.firstHalfSpread !== null && bettingLines.firstHalfSpread !== undefined
+                    ? `${bettingLines.firstHalfSpread > 0 ? '+' : ''}${bettingLines.firstHalfSpread}`
+                    : '—'}
                 </div>
-              )}
-              {bettingLines.firstHalfOverUnder !== null && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
-                  <div className="p-3 bg-muted/50 rounded text-center">
-                    <div className="text-xl font-bold text-accent">
-                      {bettingLines.firstHalfOverUnder}
-                    </div>
-                  </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+              <div className="p-3 bg-muted/50 rounded text-center">
+                <div className="text-xl font-bold text-muted-foreground">
+                  {bettingLines.firstHalfOverUnder ?? '—'}
                 </div>
-              )}
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Second Half Lines */}
-        {(bettingLines.secondHalfSpread !== null || bettingLines.secondHalfOverUnder !== null) && (
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
-              Second Half
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {bettingLines.secondHalfSpread !== null && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
-                  <div className="p-3 bg-muted/50 rounded text-center">
-                    <div className="text-xl font-bold text-accent">
-                      {bettingLines.secondHalfSpread > 0 ? '+' : ''}
-                      {bettingLines.secondHalfSpread}
-                    </div>
-                  </div>
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+            Second Half
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+              <div className="p-3 bg-muted/50 rounded text-center">
+                <div className="text-xl font-bold text-muted-foreground">
+                  {bettingLines.secondHalfSpread !== null && bettingLines.secondHalfSpread !== undefined
+                    ? `${bettingLines.secondHalfSpread > 0 ? '+' : ''}${bettingLines.secondHalfSpread}`
+                    : '—'}
                 </div>
-              )}
-              {bettingLines.secondHalfOverUnder !== null && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
-                  <div className="p-3 bg-muted/50 rounded text-center">
-                    <div className="text-xl font-bold text-accent">
-                      {bettingLines.secondHalfOverUnder}
-                    </div>
-                  </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+              <div className="p-3 bg-muted/50 rounded text-center">
+                <div className="text-xl font-bold text-muted-foreground">
+                  {bettingLines.secondHalfOverUnder ?? '—'}
                 </div>
-              )}
+              </div>
             </div>
           </div>
-        )}
-
-        {bettingLines.details && (
-          <div className="mt-4 p-2 bg-muted/30 rounded text-xs text-muted-foreground text-center">
-            {bettingLines.details}
-          </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
