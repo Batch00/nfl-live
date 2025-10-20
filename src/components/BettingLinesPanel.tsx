@@ -130,59 +130,73 @@ export const BettingLinesPanel = ({
           </div>
         </div>
 
-        {/* First Half Lines */}
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
-            First Half
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
-              <div className="p-3 bg-muted/50 rounded text-center">
-                <div className="text-xl font-bold text-muted-foreground">
-                  {bettingLines.firstHalfSpread !== null && bettingLines.firstHalfSpread !== undefined
-                    ? `${bettingLines.firstHalfSpread > 0 ? '+' : ''}${bettingLines.firstHalfSpread}`
-                    : '—'}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
-              <div className="p-3 bg-muted/50 rounded text-center">
-                <div className="text-xl font-bold text-muted-foreground">
-                  {bettingLines.firstHalfOverUnder ?? '—'}
-                </div>
-              </div>
-            </div>
+        {/* Half Lines Notice */}
+        {!bettingLines.firstHalfSpread && !bettingLines.firstHalfOverUnder && 
+         !bettingLines.secondHalfSpread && !bettingLines.secondHalfOverUnder && (
+          <div className="p-3 bg-muted/30 rounded text-xs text-muted-foreground text-center">
+            Half-time betting lines not available from current data source. Consider integrating with a dedicated odds API for more granular betting data.
           </div>
-        </div>
+        )}
 
-        {/* Second Half Lines */}
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
-            Second Half
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
-              <div className="p-3 bg-muted/50 rounded text-center">
-                <div className="text-xl font-bold text-muted-foreground">
-                  {bettingLines.secondHalfSpread !== null && bettingLines.secondHalfSpread !== undefined
-                    ? `${bettingLines.secondHalfSpread > 0 ? '+' : ''}${bettingLines.secondHalfSpread}`
-                    : '—'}
+        {/* First Half Lines - Only show if data exists */}
+        {(bettingLines.firstHalfSpread !== null && bettingLines.firstHalfSpread !== undefined || 
+          bettingLines.firstHalfOverUnder !== null && bettingLines.firstHalfOverUnder !== undefined) && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+              First Half
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+                <div className="p-3 bg-muted/50 rounded text-center">
+                  <div className="text-xl font-bold text-accent">
+                    {bettingLines.firstHalfSpread !== null && bettingLines.firstHalfSpread !== undefined
+                      ? `${bettingLines.firstHalfSpread > 0 ? '+' : ''}${bettingLines.firstHalfSpread}`
+                      : 'N/A'}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
-              <div className="p-3 bg-muted/50 rounded text-center">
-                <div className="text-xl font-bold text-muted-foreground">
-                  {bettingLines.secondHalfOverUnder ?? '—'}
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+                <div className="p-3 bg-muted/50 rounded text-center">
+                  <div className="text-xl font-bold text-accent">
+                    {bettingLines.firstHalfOverUnder ?? 'N/A'}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Second Half Lines - Only show if data exists */}
+        {(bettingLines.secondHalfSpread !== null && bettingLines.secondHalfSpread !== undefined || 
+          bettingLines.secondHalfOverUnder !== null && bettingLines.secondHalfOverUnder !== undefined) && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+              Second Half
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+                <div className="p-3 bg-muted/50 rounded text-center">
+                  <div className="text-xl font-bold text-accent">
+                    {bettingLines.secondHalfSpread !== null && bettingLines.secondHalfSpread !== undefined
+                      ? `${bettingLines.secondHalfSpread > 0 ? '+' : ''}${bettingLines.secondHalfSpread}`
+                      : 'N/A'}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+                <div className="p-3 bg-muted/50 rounded text-center">
+                  <div className="text-xl font-bold text-accent">
+                    {bettingLines.secondHalfOverUnder ?? 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
