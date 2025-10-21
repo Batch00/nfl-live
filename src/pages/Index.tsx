@@ -136,16 +136,22 @@ const Index = () => {
       weekEnd.setDate(weekStart.getDate() + 6);
       weekEnd.setHours(23, 59, 59, 999);
 
+      // If it's early in the week (Tue-Wed) include previous week's games too
+      const fetchStart = new Date(weekStart);
+      if (dayOfWeek === 2 || dayOfWeek === 3) { // Tuesday or Wednesday
+        fetchStart.setDate(weekStart.getDate() - 7); // Go back one more week
+      }
+
       console.log('Fetching games for current week:', {
-        start: weekStart.toISOString(),
+        start: fetchStart.toISOString(),
         end: weekEnd.toISOString()
       });
 
-      // Get the most recent snapshot for each unique game from current week
+      // Get the most recent snapshot for each unique game
       const { data, error } = await supabase
         .from('game_snapshots')
         .select('*')
-        .gte('game_date', weekStart.toISOString().split('T')[0])
+        .gte('game_date', fetchStart.toISOString().split('T')[0])
         .lte('game_date', weekEnd.toISOString().split('T')[0])
         .order('created_at', { ascending: false })
         .limit(200);
