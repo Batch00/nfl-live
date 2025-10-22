@@ -144,7 +144,9 @@ const Index = () => {
 
       console.log('Fetching games for current week:', {
         start: fetchStart.toISOString(),
-        end: weekEnd.toISOString()
+        end: weekEnd.toISOString(),
+        dayOfWeek,
+        includingPreviousWeek: dayOfWeek === 2 || dayOfWeek === 3
       });
 
       // Get the most recent snapshot for each unique game
@@ -156,7 +158,12 @@ const Index = () => {
         .order('created_at', { ascending: false })
         .limit(200);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log(`Raw query returned ${data?.length || 0} snapshots`);
 
       // Group by game_id and keep only the most recent
       const latestGames = data?.reduce((acc: GameSnapshot[], game: any) => {
@@ -166,13 +173,13 @@ const Index = () => {
         return acc;
       }, []) || [];
 
-      console.log(`Found ${latestGames.length} games for current week`);
+      console.log(`Found ${latestGames.length} unique games after deduplication`);
       setGames(sortGames(latestGames));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching games:', error);
       toast({
         title: "Error loading games",
-        description: "Failed to fetch game data from database",
+        description: error?.message || "Failed to fetch game data from database. Please try refreshing.",
         variant: "destructive",
       });
     }
