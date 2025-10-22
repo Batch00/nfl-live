@@ -113,6 +113,18 @@ const Index = () => {
 
   const fetchLatestGames = async () => {
     try {
+      // Validate Supabase client is initialized
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('Supabase environment variables not set:', { 
+          hasUrl: !!supabaseUrl, 
+          hasKey: !!supabaseKey 
+        });
+        throw new Error('Database connection not configured. Please check environment settings.');
+      }
+
       // Calculate date range for current NFL week (Tuesday to Monday)
       const now = new Date();
       const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
@@ -174,6 +186,30 @@ const Index = () => {
       }, []) || [];
 
       console.log(`Found ${latestGames.length} unique games after deduplication`);
+      
+      // If no games found with date filter, try fetching recent games without filter as fallback
+      if (latestGames.length === 0) {
+        console.log('No games found with date filter, trying fallback query...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('game_snapshots')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        if (fallbackError) throw fallbackError;
+        
+        const fallbackGames = fallbackData?.reduce((acc: GameSnapshot[], game: any) => {
+          if (!acc.find(g => g.game_id === game.game_id)) {
+            acc.push(game as GameSnapshot);
+          }
+          return acc;
+        }, []) || [];
+        
+        console.log(`Fallback query found ${fallbackGames.length} recent games`);
+        setGames(sortGames(fallbackGames));
+        return;
+      }
+      
       setGames(sortGames(latestGames));
     } catch (error: any) {
       console.error('Error fetching games:', error);
