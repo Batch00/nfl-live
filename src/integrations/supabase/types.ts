@@ -89,6 +89,30 @@ export type Database = {
         }
         Relationships: []
       }
+      halftime_email_recipients: {
+        Row: {
+          active: boolean
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
       halftime_exports: {
         Row: {
           created_at: string

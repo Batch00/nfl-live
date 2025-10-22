@@ -5,9 +5,11 @@ import { StatsPanel } from "@/components/StatsPanel";
 import { PlayByPlayPanel } from "@/components/PlayByPlayPanel";
 import { BettingLinesPanel } from "@/components/BettingLinesPanel";
 import { LiveBettingOddsPanel } from "@/components/LiveBettingOddsPanel";
+import { EmailRecipientsPanel } from "@/components/EmailRecipientsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, RefreshCw, Database as DatabaseIcon, Search } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Download, RefreshCw, Database as DatabaseIcon, Search, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface GameSnapshot {
@@ -402,28 +404,41 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {games.length === 0 ? (
-          <div className="text-center py-16">
-            <DatabaseIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-bold mb-2">No Games Found</h2>
-            <p className="text-muted-foreground mb-6">
-              Click "Refresh" to fetch the latest NFL game data
-            </p>
-            <Button onClick={refreshData} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Fetch Games
-            </Button>
-          </div>
-        ) : sortedAndFilteredGames.length === 0 ? (
-          <div className="text-center py-16">
-            <Search className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-bold mb-2">No Matches Found</h2>
-            <p className="text-muted-foreground">
-              Try adjusting your search query
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-12">
+        <Tabs defaultValue="games" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md mx-auto">
+            <TabsTrigger value="games">
+              <DatabaseIcon className="w-4 h-4 mr-2" />
+              Games
+            </TabsTrigger>
+            <TabsTrigger value="email">
+              <Mail className="w-4 h-4 mr-2" />
+              Email Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="games">
+            {games.length === 0 ? (
+              <div className="text-center py-16">
+                <DatabaseIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <h2 className="text-2xl font-bold mb-2">No Games Found</h2>
+                <p className="text-muted-foreground mb-6">
+                  Click "Refresh" to fetch the latest NFL game data
+                </p>
+                <Button onClick={refreshData} disabled={loading}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Fetch Games
+                </Button>
+              </div>
+            ) : sortedAndFilteredGames.length === 0 ? (
+              <div className="text-center py-16">
+                <Search className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <h2 className="text-2xl font-bold mb-2">No Matches Found</h2>
+                <p className="text-muted-foreground">
+                  Try adjusting your search query
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-12">
             {/* Live Games Section */}
             {liveGames.length > 0 && (
               <section>
@@ -556,8 +571,14 @@ const Index = () => {
                 </div>
               </section>
             )}
-          </div>
-        )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="email">
+            <EmailRecipientsPanel />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Footer */}

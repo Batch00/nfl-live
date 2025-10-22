@@ -137,11 +137,32 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get recipient email from environment
-    const recipientEmail = Deno.env.get('HALFTIME_EMAIL_RECIPIENT');
-    if (!recipientEmail) {
-      throw new Error('HALFTIME_EMAIL_RECIPIENT environment variable not set');
+    // Get active email recipients from database
+    const { data: recipients, error: recipientsError } = await supabase
+      .from('halftime_email_recipients')
+      .select('email, name')
+      .eq('active', true);
+
+    if (recipientsError) {
+      throw recipientsError;
     }
+
+    if (!recipients || recipients.length === 0) {
+      console.log('No active email recipients configured');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'No active email recipients',
+          processed: 0
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    console.log(`Found ${recipients.length} active email recipients`);
 
     // Initialize Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -210,10 +231,13 @@ serve(async (req) => {
         // Convert CSV to base64 for email attachment
         const csvBase64 = btoa(csvContent);
 
-        // Send email with CSV attachment
+        // Prepare recipient list
+        const recipientEmails = recipients.map(r => r.email);
+
+        // Send email with CSV attachment to all recipients
         const emailResult = await resend.emails.send({
           from: 'NFL Play-by-Play <onboarding@resend.dev>',
-          to: [recipientEmail],
+          to: recipientEmails,
           subject: `🏈 Halftime Play-by-Play: ${game.away_team_abbr} @ ${game.home_team_abbr}`,
           html: `
             <h2>Halftime Play-by-Play Export</h2>
@@ -235,7 +259,7 @@ serve(async (req) => {
           ]
         });
 
-        console.log(`Email sent successfully for game ${game.game_id}`, emailResult);
+        console.log(`Email sent successfully for game ${game.game_id} to ${recipientEmails.length} recipients`, emailResult);
 
         // Record the export in the database
         const { error: insertError } = await supabase
@@ -243,7 +267,7 @@ serve(async (req) => {
           .insert({
             game_id: game.game_id,
             email_status: 'success',
-            recipient_email: recipientEmail,
+            recipient_email: recipientEmails.join(', '),
             csv_filename: filename,
           });
 
@@ -261,13 +285,14 @@ serve(async (req) => {
         console.error(`Error processing game ${game.game_id}:`, error);
         
         // Record the failed export
+        const recipientEmails = recipients.map(r => r.email);
         await supabase
           .from('halftime_exports')
           .insert({
             game_id: game.game_id,
             email_status: 'failed',
             error_message: error instanceof Error ? error.message : 'Unknown error',
-            recipient_email: recipientEmail,
+            recipient_email: recipientEmails.join(', '),
             csv_filename: `NFL_${game.game_id}_plays.csv`,
           });
 
