@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.export-play-by-play]
 verify_jwt = false
+
+[functions.halftime-emailer]
+verify_jwt = false

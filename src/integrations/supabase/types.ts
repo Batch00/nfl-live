@@ -89,6 +89,39 @@ export type Database = {
         }
         Relationships: []
       }
+      halftime_exports: {
+        Row: {
+          created_at: string
+          csv_filename: string
+          email_status: string
+          emailed_at: string
+          error_message: string | null
+          game_id: string
+          id: string
+          recipient_email: string
+        }
+        Insert: {
+          created_at?: string
+          csv_filename: string
+          email_status?: string
+          emailed_at?: string
+          error_message?: string | null
+          game_id: string
+          id?: string
+          recipient_email: string
+        }
+        Update: {
+          created_at?: string
+          csv_filename?: string
+          email_status?: string
+          emailed_at?: string
+          error_message?: string | null
+          game_id?: string
+          id?: string
+          recipient_email?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
