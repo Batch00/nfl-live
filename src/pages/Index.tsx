@@ -113,6 +113,18 @@ const Index = () => {
 
   const fetchLatestGames = async () => {
     try {
+      // Validate Supabase client is initialized
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('Supabase environment variables not set:', { 
+          hasUrl: !!supabaseUrl, 
+          hasKey: !!supabaseKey 
+        });
+        throw new Error('Database connection not configured. Please check environment settings.');
+      }
+
       // Calculate date range for current NFL week (Tuesday to Monday)
       const now = new Date();
       const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
@@ -136,21 +148,34 @@ const Index = () => {
       weekEnd.setDate(weekStart.getDate() + 6);
       weekEnd.setHours(23, 59, 59, 999);
 
+      // If it's early in the week (Tue-Wed) include previous week's games too
+      const fetchStart = new Date(weekStart);
+      if (dayOfWeek === 2 || dayOfWeek === 3) { // Tuesday or Wednesday
+        fetchStart.setDate(weekStart.getDate() - 7); // Go back one more week
+      }
+
       console.log('Fetching games for current week:', {
-        start: weekStart.toISOString(),
-        end: weekEnd.toISOString()
+        start: fetchStart.toISOString(),
+        end: weekEnd.toISOString(),
+        dayOfWeek,
+        includingPreviousWeek: dayOfWeek === 2 || dayOfWeek === 3
       });
 
-      // Get the most recent snapshot for each unique game from current week
+      // Get the most recent snapshot for each unique game
       const { data, error } = await supabase
         .from('game_snapshots')
         .select('*')
-        .gte('game_date', weekStart.toISOString().split('T')[0])
+        .gte('game_date', fetchStart.toISOString().split('T')[0])
         .lte('game_date', weekEnd.toISOString().split('T')[0])
         .order('created_at', { ascending: false })
         .limit(200);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log(`Raw query returned ${data?.length || 0} snapshots`);
 
       // Group by game_id and keep only the most recent
       const latestGames = data?.reduce((acc: GameSnapshot[], game: any) => {
@@ -160,13 +185,37 @@ const Index = () => {
         return acc;
       }, []) || [];
 
-      console.log(`Found ${latestGames.length} games for current week`);
+      console.log(`Found ${latestGames.length} unique games after deduplication`);
+      
+      // If no games found with date filter, try fetching recent games without filter as fallback
+      if (latestGames.length === 0) {
+        console.log('No games found with date filter, trying fallback query...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('game_snapshots')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        if (fallbackError) throw fallbackError;
+        
+        const fallbackGames = fallbackData?.reduce((acc: GameSnapshot[], game: any) => {
+          if (!acc.find(g => g.game_id === game.game_id)) {
+            acc.push(game as GameSnapshot);
+          }
+          return acc;
+        }, []) || [];
+        
+        console.log(`Fallback query found ${fallbackGames.length} recent games`);
+        setGames(sortGames(fallbackGames));
+        return;
+      }
+      
       setGames(sortGames(latestGames));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching games:', error);
       toast({
         title: "Error loading games",
-        description: "Failed to fetch game data from database",
+        description: error?.message || "Failed to fetch game data from database. Please try refreshing.",
         variant: "destructive",
       });
     }
