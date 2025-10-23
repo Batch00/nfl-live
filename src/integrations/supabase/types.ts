@@ -117,6 +117,7 @@ export type Database = {
         Row: {
           away_team: string | null
           created_at: string
+          csv_content: string | null
           csv_filename: string
           csv_path: string | null
           email_status: string
@@ -133,6 +134,7 @@ export type Database = {
         Insert: {
           away_team?: string | null
           created_at?: string
+          csv_content?: string | null
           csv_filename: string
           csv_path?: string | null
           email_status?: string
@@ -149,6 +151,7 @@ export type Database = {
         Update: {
           away_team?: string | null
           created_at?: string
+          csv_content?: string | null
           csv_filename?: string
           csv_path?: string | null
           email_status?: string

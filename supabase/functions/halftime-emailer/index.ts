@@ -272,6 +272,7 @@ serve(async (req) => {
             email_status: 'success',
             recipient_email: recipientEmails.join(', '),
             csv_filename: filename,
+            csv_content: csvContent, // Store the actual CSV content
             year: gameYear,
             week: gameWeek,
             home_team: game.home_team,
@@ -307,6 +308,7 @@ serve(async (req) => {
             error_message: error instanceof Error ? error.message : 'Unknown error',
             recipient_email: recipientEmails.join(', '),
             csv_filename: failedFilename,
+            csv_content: null, // No CSV content on failure
             year: gameYear,
             week: gameWeek,
             home_team: game.home_team,

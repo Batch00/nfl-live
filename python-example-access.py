@@ -44,6 +44,47 @@ def get_successful_exports_only(supabase: Client):
     response = supabase.table('halftime_exports').select('*').eq('email_status', 'success').execute()
     return response.data
 
+def get_play_by_play_as_dataframe(supabase: Client, game_id: str):
+    """
+    Fetch the CSV content for a specific game and convert it to a pandas DataFrame.
+    
+    The CSV has game metadata at the top, followed by 'Play-by-Play Data' header,
+    then the actual data table. This function skips the metadata and returns just the play data.
+    """
+    import pandas as pd
+    from io import StringIO
+    
+    # Fetch the CSV content from database
+    response = supabase.table('halftime_exports').select('csv_content').eq('game_id', game_id).execute()
+    
+    if not response.data or not response.data[0].get('csv_content'):
+        print(f"No CSV content found for game_id: {game_id}")
+        return None
+    
+    csv_content = response.data[0]['csv_content']
+    
+    # Find where the actual data starts (after "Play-by-Play Data" header)
+    lines = csv_content.split('\n')
+    data_start_index = None
+    
+    for i, line in enumerate(lines):
+        if line.strip() == 'Play-by-Play Data':
+            # The next line after "Play-by-Play Data" is the column headers
+            data_start_index = i + 1
+            break
+    
+    if data_start_index is None:
+        print("Could not find 'Play-by-Play Data' section in CSV")
+        return None
+    
+    # Join lines from the data section onward
+    csv_data_section = '\n'.join(lines[data_start_index:])
+    
+    # Convert to pandas DataFrame
+    df = pd.read_csv(StringIO(csv_data_section))
+    
+    return df
+
 def main():
     """Main function demonstrating various queries."""
     
@@ -84,6 +125,25 @@ def main():
         print(f"  CSV Filename: {game['csv_filename']}")
         print(f"  Email Status: {game['email_status']}")
         print(f"  Timestamp: {game['created_at']}")
+        print()
+    
+    # Example 5: Get play-by-play data as pandas DataFrame
+    if all_games:
+        print("📊 Example 5: Load play-by-play CSV into pandas DataFrame")
+        game_id = all_games[0]['game_id']
+        print(f"  Loading data for game {game_id}...")
+        
+        df = get_play_by_play_as_dataframe(supabase, game_id)
+        
+        if df is not None:
+            print(f"  ✅ Successfully loaded {len(df)} plays into DataFrame")
+            print(f"  Columns: {list(df.columns)}")
+            print(f"\n  First 3 plays:")
+            print(df.head(3).to_string(index=False))
+            print(f"\n  DataFrame shape: {df.shape}")
+            print(f"  Memory usage: {df.memory_usage(deep=True).sum() / 1024:.2f} KB")
+        else:
+            print("  ❌ Could not load play-by-play data")
 
 if __name__ == "__main__":
     main()
