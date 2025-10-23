@@ -261,7 +261,10 @@ serve(async (req) => {
 
         console.log(`Email sent successfully for game ${game.game_id} to ${recipientEmails.length} recipients`, emailResult);
 
-        // Record the export in the database
+        // Record the export in the database with full metadata for Python access
+        const gameYear = new Date(game.game_date).getFullYear();
+        const gameWeek = parseInt(calculateNFLWeek(game.game_date));
+        
         const { error: insertError } = await supabase
           .from('halftime_exports')
           .insert({
@@ -269,6 +272,12 @@ serve(async (req) => {
             email_status: 'success',
             recipient_email: recipientEmails.join(', '),
             csv_filename: filename,
+            year: gameYear,
+            week: gameWeek,
+            home_team: game.home_team,
+            away_team: game.away_team,
+            game_date: game.game_date,
+            csv_path: filename, // CSV sent as attachment, path is the filename
           });
 
         if (insertError) {
@@ -284,8 +293,12 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Error processing game ${game.game_id}:`, error);
         
-        // Record the failed export
+        // Record the failed export with metadata
         const recipientEmails = recipients.map(r => r.email);
+        const gameYear = new Date(game.game_date).getFullYear();
+        const gameWeek = parseInt(calculateNFLWeek(game.game_date));
+        const failedFilename = `NFL_${game.game_id}_plays.csv`;
+        
         await supabase
           .from('halftime_exports')
           .insert({
@@ -293,7 +306,13 @@ serve(async (req) => {
             email_status: 'failed',
             error_message: error instanceof Error ? error.message : 'Unknown error',
             recipient_email: recipientEmails.join(', '),
-            csv_filename: `NFL_${game.game_id}_plays.csv`,
+            csv_filename: failedFilename,
+            year: gameYear,
+            week: gameWeek,
+            home_team: game.home_team,
+            away_team: game.away_team,
+            game_date: game.game_date,
+            csv_path: failedFilename,
           });
 
         results.push({

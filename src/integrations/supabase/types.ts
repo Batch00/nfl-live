@@ -115,34 +115,52 @@ export type Database = {
       }
       halftime_exports: {
         Row: {
+          away_team: string | null
           created_at: string
           csv_filename: string
+          csv_path: string | null
           email_status: string
           emailed_at: string
           error_message: string | null
+          game_date: string | null
           game_id: string
+          home_team: string | null
           id: string
           recipient_email: string
+          week: number | null
+          year: number | null
         }
         Insert: {
+          away_team?: string | null
           created_at?: string
           csv_filename: string
+          csv_path?: string | null
           email_status?: string
           emailed_at?: string
           error_message?: string | null
+          game_date?: string | null
           game_id: string
+          home_team?: string | null
           id?: string
           recipient_email: string
+          week?: number | null
+          year?: number | null
         }
         Update: {
+          away_team?: string | null
           created_at?: string
           csv_filename?: string
+          csv_path?: string | null
           email_status?: string
           emailed_at?: string
           error_message?: string | null
+          game_date?: string | null
           game_id?: string
+          home_team?: string | null
           id?: string
           recipient_email?: string
+          week?: number | null
+          year?: number | null
         }
         Relationships: []
       }
