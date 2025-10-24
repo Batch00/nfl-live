@@ -16,8 +16,47 @@ serve(async (req) => {
     const gameId = url.searchParams.get('game_id');
     const startDate = url.searchParams.get('start_date');
     const endDate = url.searchParams.get('end_date');
-    const limit = url.searchParams.get('limit') || '1000';
+    const limitParam = url.searchParams.get('limit');
     const format = url.searchParams.get('format') || 'json'; // json or csv
+
+    // Validate and parse limit with bounds
+    const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam)), 10000) : 1000;
+    if (limitParam && isNaN(limit)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid limit parameter. Must be a number between 1 and 10000.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate date format if provided
+    const isValidDate = (dateString: string): boolean => {
+      const regex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!regex.test(dateString)) return false;
+      const date = new Date(dateString);
+      return date instanceof Date && !isNaN(date.getTime());
+    };
+
+    if (startDate && !isValidDate(startDate)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid start_date format. Use YYYY-MM-DD.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    if (endDate && !isValidDate(endDate)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid end_date format. Use YYYY-MM-DD.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate format
+    if (format && !['csv', 'json'].includes(format)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid format. Use csv or json.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
 
     console.log('Export request:', { gameId, startDate, endDate, limit, format });
 
@@ -31,7 +70,7 @@ serve(async (req) => {
       .from('game_snapshots')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(parseInt(limit));
+      .limit(limit);
 
     if (gameId) {
       query = query.eq('game_id', gameId);

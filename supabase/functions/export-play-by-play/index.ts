@@ -15,11 +15,26 @@ serve(async (req) => {
     const url = new URL(req.url);
     const gameId = url.searchParams.get('game_id');
 
-    if (!gameId) {
+    // Validate game_id is provided and not empty
+    if (!gameId || gameId.trim().length === 0) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'game_id parameter is required'
+          error: 'game_id parameter is required and cannot be empty'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+
+    // Validate game_id format (basic validation - should be alphanumeric)
+    if (!/^[a-zA-Z0-9_-]+$/.test(gameId)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid game_id format. Must contain only alphanumeric characters, hyphens, or underscores.'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

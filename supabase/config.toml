@@ -4,10 +4,10 @@ project_id = "tjazosfjsxqaaspwsgal"
 verify_jwt = true
 
 [functions.export-game-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.export-play-by-play]
-verify_jwt = false
+verify_jwt = true
 
 [functions.halftime-emailer]
 verify_jwt = true
