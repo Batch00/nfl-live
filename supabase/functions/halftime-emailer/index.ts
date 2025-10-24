@@ -182,7 +182,7 @@ serve(async (req) => {
       throw queryError;
     }
 
-    console.log(`Found ${halftimeGames?.length || 0} games at halftime`);
+    console.log(`Found ${halftimeGames?.length || 0} total game snapshots at halftime`);
 
     if (!halftimeGames || halftimeGames.length === 0) {
       return new Response(
@@ -198,8 +198,18 @@ serve(async (req) => {
       );
     }
 
+    // Deduplicate games - keep only the most recent snapshot per game_id
+    const uniqueGamesMap = new Map<string, GameSnapshot>();
+    for (const game of halftimeGames as GameSnapshot[]) {
+      if (!uniqueGamesMap.has(game.game_id)) {
+        uniqueGamesMap.set(game.game_id, game);
+      }
+    }
+    const uniqueGames = Array.from(uniqueGamesMap.values());
+    console.log(`Deduplicated to ${uniqueGames.length} unique games`);
+
     // Get list of already emailed game IDs
-    const gameIds = halftimeGames.map(g => g.game_id);
+    const gameIds = uniqueGames.map(g => g.game_id);
     const { data: alreadyEmailed } = await supabase
       .from('halftime_exports')
       .select('game_id')
@@ -209,10 +219,18 @@ serve(async (req) => {
 
     // Process each halftime game that hasn't been emailed yet
     const results = [];
-    for (const game of halftimeGames as GameSnapshot[]) {
+    for (let i = 0; i < uniqueGames.length; i++) {
+      const game = uniqueGames[i];
+      
       if (emailedGameIds.has(game.game_id)) {
         console.log(`Game ${game.game_id} already emailed, skipping`);
         continue;
+      }
+
+      // Add delay between emails to respect Resend's 2 requests/second rate limit
+      if (i > 0) {
+        console.log('Waiting 600ms to respect rate limit...');
+        await new Promise(resolve => setTimeout(resolve, 600));
       }
 
       try {
