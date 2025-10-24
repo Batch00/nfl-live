@@ -259,14 +259,24 @@ const Index = () => {
 
   const exportToCSV = async () => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: 'Authentication required',
+          description: 'Please log in to export data',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       const response = await fetch(
         `${supabaseUrl}/functions/v1/export-game-data?format=csv&limit=1000`,
         {
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
         }
       );
@@ -299,14 +309,24 @@ const Index = () => {
 
   const exportPlayByPlay = async (gameId: string) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: 'Authentication required',
+          description: 'Please log in to export data',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       const response = await fetch(
         `${supabaseUrl}/functions/v1/export-play-by-play?game_id=${gameId}`,
         {
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
         }
       );
