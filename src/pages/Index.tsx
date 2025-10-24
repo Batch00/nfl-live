@@ -441,7 +441,7 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="games" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md mx-auto">
+          <TabsList className={`grid w-full mb-8 max-w-md mx-auto ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <TabsTrigger value="games">
               <DatabaseIcon className="w-4 h-4 mr-2" />
               Games
