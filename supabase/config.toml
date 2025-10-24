@@ -1,7 +1,7 @@
 project_id = "tjazosfjsxqaaspwsgal"
 
 [functions.fetch-nfl-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.export-game-data]
 verify_jwt = false
@@ -10,4 +10,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.halftime-emailer]
-verify_jwt = false
+verify_jwt = true

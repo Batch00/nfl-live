@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Mail, Trash2, Plus } from "lucide-react";
+import { z } from "zod";
 
 interface EmailRecipient {
   id: string;
@@ -16,6 +17,18 @@ interface EmailRecipient {
   active: boolean;
   created_at: string;
 }
+
+const recipientSchema = z.object({
+  email: z.string()
+    .trim()
+    .email({ message: "Invalid email address" })
+    .max(255, { message: "Email must be less than 255 characters" }),
+  name: z.string()
+    .trim()
+    .max(100, { message: "Name must be less than 100 characters" })
+    .optional()
+    .nullable(),
+});
 
 export const EmailRecipientsPanel = () => {
   const [newEmail, setNewEmail] = useState("");
@@ -122,14 +135,21 @@ export const EmailRecipientsPanel = () => {
 
   const handleAddRecipient = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmail || !newEmail.includes('@')) {
+    
+    const result = recipientSchema.safeParse({ 
+      email: newEmail, 
+      name: newName || null 
+    });
+    
+    if (!result.success) {
       toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address",
+        title: "Validation Error",
+        description: result.error.errors[0].message,
         variant: "destructive",
       });
       return;
     }
+    
     addRecipient.mutate();
   };
 

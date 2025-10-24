@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { GameCard } from "@/components/GameCard";
 import { StatsPanel } from "@/components/StatsPanel";
 import { PlayByPlayPanel } from "@/components/PlayByPlayPanel";
@@ -9,7 +10,7 @@ import { EmailRecipientsPanel } from "@/components/EmailRecipientsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, RefreshCw, Database as DatabaseIcon, Search, Mail } from "lucide-react";
+import { Download, RefreshCw, Database as DatabaseIcon, Search, Mail, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface GameSnapshot {
@@ -40,6 +41,7 @@ const Index = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+  const { signOut, user, isAdmin } = useAuth();
 
   // Sort games: in progress first, then scheduled, then completed (most recent)
   const sortGames = (gamesList: GameSnapshot[]) => {
@@ -226,7 +228,13 @@ const Index = () => {
   const refreshData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-nfl-data');
+      const session = await supabase.auth.getSession();
+      
+      const { data, error } = await supabase.functions.invoke('fetch-nfl-data', {
+        headers: {
+          Authorization: `Bearer ${session.data.session?.access_token}`,
+        },
+      });
       
       if (error) throw error;
 
@@ -386,6 +394,14 @@ const Index = () => {
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
           
@@ -410,10 +426,12 @@ const Index = () => {
               <DatabaseIcon className="w-4 h-4 mr-2" />
               Games
             </TabsTrigger>
-            <TabsTrigger value="email">
-              <Mail className="w-4 h-4 mr-2" />
-              Email Settings
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="email">
+                <Mail className="w-4 h-4 mr-2" />
+                Email Settings
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="games">
@@ -575,9 +593,11 @@ const Index = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="email">
-            <EmailRecipientsPanel />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="email">
+              <EmailRecipientsPanel />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
