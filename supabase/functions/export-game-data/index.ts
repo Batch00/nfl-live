@@ -148,8 +148,8 @@ serve(async (req) => {
       // Helper to format possession time to prevent Excel from treating as time of day
       const formatPossessionTime = (value: string | null | undefined): string => {
         if (!value) return '';
-        // Prepend with equals sign and quotes to force text format in Excel
-        return `="${value}"`;
+        // Single quote prefix forces text format in Excel
+        return `'${value}`;
       };
 
       // Process each game and create two rows (one for each team)
