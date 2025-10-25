@@ -41,9 +41,9 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
   }
 
   try {
-    // Fetch NFL odds from TheOddsAPI (full game + first half + second half)
+    // Fetch NFL odds from TheOddsAPI (full game only - half markets not available)
     const oddsResponse = await fetch(
-      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${oddsApiKey}&regions=us&markets=h2h,spreads,totals,h2h_h1,spreads_h1,totals_h1,h2h_h2,spreads_h2,totals_h2&oddsFormat=american`
+      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${oddsApiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
     );
 
     if (!oddsResponse.ok) {
