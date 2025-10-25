@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface BettingLinesPanelProps {
@@ -21,6 +22,8 @@ function parseBettingLines(bettingLines: any) {
       homeML: bettingLines.consensus.home_ml,
       awayML: bettingLines.consensus.away_ml,
       bookmakers: bettingLines.bookmakers || [],
+      firstHalf: bettingLines.first_half || null,
+      secondHalf: bettingLines.second_half || null,
       gameState: bettingLines.game_state,
       lastUpdate: bettingLines.last_update,
     };
@@ -35,6 +38,8 @@ function parseBettingLines(bettingLines: any) {
       homeML: bettingLines.homeMoneyline,
       awayML: bettingLines.awayMoneyline,
       bookmakers: [],
+      firstHalf: null,
+      secondHalf: null,
       gameState: bettingLines.game_state,
     };
   }
@@ -157,38 +162,159 @@ export const BettingLinesPanel = ({
           </div>
         </div>
 
+        {/* First Half Odds - Only for TheOddsAPI */}
+        {odds.source === 'TheOddsAPI' && odds.firstHalf?.consensus && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+              First Half Odds
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* First Half Moneyline */}
+              {(odds.firstHalf.consensus.home_ml || odds.firstHalf.consensus.away_ml) && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Moneyline</h4>
+                  <div className="space-y-1">
+                    {odds.firstHalf.consensus.away_ml !== null && (
+                      <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                        <span className="text-sm">{awayTeam}</span>
+                        <span className="font-bold">
+                          {odds.firstHalf.consensus.away_ml > 0 ? '+' : ''}
+                          {Math.round(odds.firstHalf.consensus.away_ml)}
+                        </span>
+                      </div>
+                    )}
+                    {odds.firstHalf.consensus.home_ml !== null && (
+                      <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                        <span className="text-sm">{homeTeam}</span>
+                        <span className="font-bold">
+                          {odds.firstHalf.consensus.home_ml > 0 ? '+' : ''}
+                          {Math.round(odds.firstHalf.consensus.home_ml)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* First Half Spread */}
+              {odds.firstHalf.consensus.spread !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-2xl font-bold text-accent">
+                      {odds.firstHalf.consensus.spread > 0 ? '+' : ''}
+                      {odds.firstHalf.consensus.spread.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* First Half Over/Under */}
+              {odds.firstHalf.consensus.total !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-2xl font-bold text-accent">
+                      {odds.firstHalf.consensus.total.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Second Half Odds - Only for TheOddsAPI */}
+        {odds.source === 'TheOddsAPI' && odds.secondHalf?.consensus && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
+              Second Half Odds
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Second Half Moneyline */}
+              {(odds.secondHalf.consensus.home_ml || odds.secondHalf.consensus.away_ml) && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Moneyline</h4>
+                  <div className="space-y-1">
+                    {odds.secondHalf.consensus.away_ml !== null && (
+                      <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                        <span className="text-sm">{awayTeam}</span>
+                        <span className="font-bold">
+                          {odds.secondHalf.consensus.away_ml > 0 ? '+' : ''}
+                          {Math.round(odds.secondHalf.consensus.away_ml)}
+                        </span>
+                      </div>
+                    )}
+                    {odds.secondHalf.consensus.home_ml !== null && (
+                      <div className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                        <span className="text-sm">{homeTeam}</span>
+                        <span className="font-bold">
+                          {odds.secondHalf.consensus.home_ml > 0 ? '+' : ''}
+                          {Math.round(odds.secondHalf.consensus.home_ml)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Second Half Spread */}
+              {odds.secondHalf.consensus.spread !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Spread</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-2xl font-bold text-accent">
+                      {odds.secondHalf.consensus.spread > 0 ? '+' : ''}
+                      {odds.secondHalf.consensus.spread.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Second Half Over/Under */}
+              {odds.secondHalf.consensus.total !== null && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Over/Under</h4>
+                  <div className="p-3 bg-muted/50 rounded text-center">
+                    <div className="text-2xl font-bold text-accent">
+                      {odds.secondHalf.consensus.total.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Sportsbook Comparison - Only for TheOddsAPI */}
         {odds.source === 'TheOddsAPI' && odds.bookmakers.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">
-              Sportsbook Comparison
+              Sportsbook Comparison ({odds.bookmakers.length} books)
             </h3>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {odds.bookmakers.slice(0, 5).map((book: any, idx: number) => (
-                <div key={idx} className="p-2 bg-muted/30 rounded text-xs">
-                  <div className="font-semibold mb-1">{book.name}</div>
-                  <div className="grid grid-cols-3 gap-2 text-muted-foreground">
-                    <div>
-                      <span className="font-medium">ML:</span>{' '}
-                      {book.away_moneyline ? `${book.away_moneyline > 0 ? '+' : ''}${book.away_moneyline}` : '-'} /{' '}
-                      {book.home_moneyline ? `${book.home_moneyline > 0 ? '+' : ''}${book.home_moneyline}` : '-'}
-                    </div>
-                    <div>
-                      <span className="font-medium">Spread:</span>{' '}
-                      {book.home_spread ? `${book.home_spread > 0 ? '+' : ''}${book.home_spread}` : '-'}
-                    </div>
-                    <div>
-                      <span className="font-medium">Total:</span> {book.total || '-'}
+            <ScrollArea className="h-[300px] w-full rounded-md">
+              <div className="space-y-2 pr-4">
+                {odds.bookmakers.map((book: any, idx: number) => (
+                  <div key={idx} className="p-2 bg-muted/30 rounded text-xs">
+                    <div className="font-semibold mb-1">{book.name}</div>
+                    <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                      <div>
+                        <span className="font-medium">ML:</span>{' '}
+                        {book.away_moneyline ? `${book.away_moneyline > 0 ? '+' : ''}${book.away_moneyline}` : '-'} /{' '}
+                        {book.home_moneyline ? `${book.home_moneyline > 0 ? '+' : ''}${book.home_moneyline}` : '-'}
+                      </div>
+                      <div>
+                        <span className="font-medium">Spread:</span>{' '}
+                        {book.home_spread ? `${book.home_spread > 0 ? '+' : ''}${book.home_spread}` : '-'}
+                      </div>
+                      <div>
+                        <span className="font-medium">Total:</span> {book.total || '-'}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            {odds.bookmakers.length > 5 && (
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Showing 5 of {odds.bookmakers.length} sportsbooks
-              </p>
-            )}
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         )}
 

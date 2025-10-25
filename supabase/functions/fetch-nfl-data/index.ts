@@ -41,9 +41,9 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
   }
 
   try {
-    // Fetch NFL odds from TheOddsAPI
+    // Fetch NFL odds from TheOddsAPI (full game + first half + second half)
     const oddsResponse = await fetch(
-      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${oddsApiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
+      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${oddsApiKey}&regions=us&markets=h2h,spreads,totals,h2h_h1,spreads_h1,totals_h1,h2h_h2,spreads_h2,totals_h2&oddsFormat=american`
     );
 
     if (!oddsResponse.ok) {
@@ -71,6 +71,24 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
           over_odds: null,
           under_odds: null,
         },
+        first_half: {
+          consensus: {
+            home_ml: null,
+            away_ml: null,
+            spread: null,
+            total: null,
+          },
+          bookmakers: [],
+        },
+        second_half: {
+          consensus: {
+            home_ml: null,
+            away_ml: null,
+            spread: null,
+            total: null,
+          },
+          bookmakers: [],
+        },
         last_update: new Date().toISOString(),
       };
 
@@ -80,16 +98,19 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
           name: bookmaker.title,
           last_update: bookmaker.last_update,
         };
+        
+        const firstHalfOdds: any = { name: bookmaker.title };
+        const secondHalfOdds: any = { name: bookmaker.title };
 
         for (const market of bookmaker.markets) {
           if (market.key === 'h2h') {
-            // Moneyline
+            // Full game moneyline
             const homeML = market.outcomes.find(o => o.name === game.home_team);
             const awayML = market.outcomes.find(o => o.name === game.away_team);
             bookmakerOdds.home_moneyline = homeML?.price || null;
             bookmakerOdds.away_moneyline = awayML?.price || null;
           } else if (market.key === 'spreads') {
-            // Spread
+            // Full game spread
             const homeSpread = market.outcomes.find(o => o.name === game.home_team);
             const awaySpread = market.outcomes.find(o => o.name === game.away_team);
             bookmakerOdds.home_spread = homeSpread?.point || null;
@@ -97,22 +118,62 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
             bookmakerOdds.away_spread = awaySpread?.point || null;
             bookmakerOdds.away_spread_odds = awaySpread?.price || null;
           } else if (market.key === 'totals') {
-            // Over/Under
+            // Full game over/under
             const over = market.outcomes.find(o => o.name === 'Over');
             const under = market.outcomes.find(o => o.name === 'Under');
             bookmakerOdds.total = over?.point || under?.point || null;
             bookmakerOdds.over_odds = over?.price || null;
             bookmakerOdds.under_odds = under?.price || null;
+          } else if (market.key === 'h2h_h1') {
+            // First half moneyline
+            const homeML = market.outcomes.find(o => o.name === game.home_team);
+            const awayML = market.outcomes.find(o => o.name === game.away_team);
+            firstHalfOdds.home_moneyline = homeML?.price || null;
+            firstHalfOdds.away_moneyline = awayML?.price || null;
+          } else if (market.key === 'spreads_h1') {
+            // First half spread
+            const homeSpread = market.outcomes.find(o => o.name === game.home_team);
+            firstHalfOdds.spread = homeSpread?.point || null;
+            firstHalfOdds.spread_odds = homeSpread?.price || null;
+          } else if (market.key === 'totals_h1') {
+            // First half over/under
+            const over = market.outcomes.find(o => o.name === 'Over');
+            firstHalfOdds.total = over?.point || null;
+            firstHalfOdds.over_odds = over?.price || null;
+          } else if (market.key === 'h2h_h2') {
+            // Second half moneyline
+            const homeML = market.outcomes.find(o => o.name === game.home_team);
+            const awayML = market.outcomes.find(o => o.name === game.away_team);
+            secondHalfOdds.home_moneyline = homeML?.price || null;
+            secondHalfOdds.away_moneyline = awayML?.price || null;
+          } else if (market.key === 'spreads_h2') {
+            // Second half spread
+            const homeSpread = market.outcomes.find(o => o.name === game.home_team);
+            secondHalfOdds.spread = homeSpread?.point || null;
+            secondHalfOdds.spread_odds = homeSpread?.price || null;
+          } else if (market.key === 'totals_h2') {
+            // Second half over/under
+            const over = market.outcomes.find(o => o.name === 'Over');
+            secondHalfOdds.total = over?.point || null;
+            secondHalfOdds.over_odds = over?.price || null;
           }
         }
 
         parsedOdds.bookmakers.push(bookmakerOdds);
+        
+        // Only add half odds if they have data
+        if (Object.keys(firstHalfOdds).length > 1) {
+          parsedOdds.first_half.bookmakers.push(firstHalfOdds);
+        }
+        if (Object.keys(secondHalfOdds).length > 1) {
+          parsedOdds.second_half.bookmakers.push(secondHalfOdds);
+        }
       }
 
       // Calculate consensus (average of all bookmakers)
+      const calcAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+      
       if (parsedOdds.bookmakers.length > 0) {
-        const calcAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-        
         const homeMLs = parsedOdds.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
         const awayMLs = parsedOdds.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
         const homeSpreads = parsedOdds.bookmakers.map((b: any) => b.home_spread).filter((v: any) => v !== null);
@@ -122,6 +183,32 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
         parsedOdds.consensus.away_ml = calcAvg(awayMLs);
         parsedOdds.consensus.spread = calcAvg(homeSpreads);
         parsedOdds.consensus.total = calcAvg(totals);
+      }
+      
+      // Calculate first half consensus
+      if (parsedOdds.first_half.bookmakers.length > 0) {
+        const h1HomeMLs = parsedOdds.first_half.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
+        const h1AwayMLs = parsedOdds.first_half.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
+        const h1Spreads = parsedOdds.first_half.bookmakers.map((b: any) => b.spread).filter((v: any) => v !== null);
+        const h1Totals = parsedOdds.first_half.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
+        
+        parsedOdds.first_half.consensus.home_ml = calcAvg(h1HomeMLs);
+        parsedOdds.first_half.consensus.away_ml = calcAvg(h1AwayMLs);
+        parsedOdds.first_half.consensus.spread = calcAvg(h1Spreads);
+        parsedOdds.first_half.consensus.total = calcAvg(h1Totals);
+      }
+      
+      // Calculate second half consensus
+      if (parsedOdds.second_half.bookmakers.length > 0) {
+        const h2HomeMLs = parsedOdds.second_half.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
+        const h2AwayMLs = parsedOdds.second_half.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
+        const h2Spreads = parsedOdds.second_half.bookmakers.map((b: any) => b.spread).filter((v: any) => v !== null);
+        const h2Totals = parsedOdds.second_half.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
+        
+        parsedOdds.second_half.consensus.home_ml = calcAvg(h2HomeMLs);
+        parsedOdds.second_half.consensus.away_ml = calcAvg(h2AwayMLs);
+        parsedOdds.second_half.consensus.spread = calcAvg(h2Spreads);
+        parsedOdds.second_half.consensus.total = calcAvg(h2Totals);
       }
 
       oddsMap.set(key, parsedOdds);
