@@ -145,6 +145,13 @@ serve(async (req) => {
         return parts[index] || '';
       };
 
+      // Helper to format possession time to prevent Excel from treating as time of day
+      const formatPossessionTime = (value: string | null | undefined): string => {
+        if (!value) return '';
+        // Prepend with equals sign and quotes to force text format in Excel
+        return `="${value}"`;
+      };
+
       // Process each game and create two rows (one for each team)
       for (const game of latestGames) {
         const homeStats = game.home_stats || {};
@@ -202,7 +209,7 @@ serve(async (req) => {
           parseCompound(getStat(awayStats, 'sacksYardsLost'), 1),
           parseCompound(getStat(awayStats, 'redZoneAttempts'), 1),
           parseCompound(getStat(awayStats, 'redZoneAttempts'), 0),
-          getStat(awayStats, 'possessionTime')
+          formatPossessionTime(getStat(awayStats, 'possessionTime'))
         ].map(v => `"${v}"`);
 
         // Home team row
@@ -246,7 +253,7 @@ serve(async (req) => {
           parseCompound(getStat(homeStats, 'sacksYardsLost'), 1),
           parseCompound(getStat(homeStats, 'redZoneAttempts'), 1),
           parseCompound(getStat(homeStats, 'redZoneAttempts'), 0),
-          getStat(homeStats, 'possessionTime')
+          formatPossessionTime(getStat(homeStats, 'possessionTime'))
         ].map(v => `"${v}"`);
 
         csv += awayRow.join(',') + '\n';
