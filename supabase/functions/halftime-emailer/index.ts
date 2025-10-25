@@ -24,6 +24,7 @@ interface GameSnapshot {
   broadcast: string;
   play_by_play: any[];
   game_start_time: string;
+  betting_lines?: any;
 }
 
 // Calculate NFL week from game date
@@ -56,6 +57,55 @@ function generateCSV(game: GameSnapshot): string {
   csv += `Broadcast,${game.broadcast || 'N/A'}\n`;
   csv += `Export Time,${new Date().toISOString()}\n`;
   csv += `\n`;
+  
+  // Add betting odds section if available
+  if (game.betting_lines && Object.keys(game.betting_lines).length > 0) {
+    csv += `Betting Odds\n`;
+    const odds = game.betting_lines as any;
+    
+    if (odds.source === 'TheOddsAPI' && odds.consensus) {
+      csv += `Odds Source,TheOddsAPI\n`;
+      csv += `Game State,${odds.game_state || 'N/A'}\n`;
+      csv += `Last Updated,${odds.last_update || 'N/A'}\n`;
+      csv += `\n`;
+      csv += `Consensus Odds (Average of Multiple Sportsbooks)\n`;
+      csv += `Home Moneyline,${odds.consensus.home_ml ? (odds.consensus.home_ml > 0 ? '+' : '') + Math.round(odds.consensus.home_ml) : 'N/A'}\n`;
+      csv += `Away Moneyline,${odds.consensus.away_ml ? (odds.consensus.away_ml > 0 ? '+' : '') + Math.round(odds.consensus.away_ml) : 'N/A'}\n`;
+      csv += `Spread,${odds.consensus.spread ? (odds.consensus.spread > 0 ? '+' : '') + odds.consensus.spread.toFixed(1) : 'N/A'}\n`;
+      csv += `Total (Over/Under),${odds.consensus.total ? odds.consensus.total.toFixed(1) : 'N/A'}\n`;
+      csv += `\n`;
+      
+      // Add individual sportsbook odds
+      if (odds.bookmakers && odds.bookmakers.length > 0) {
+        csv += `Individual Sportsbook Odds\n`;
+        csv += `Sportsbook,Home ML,Away ML,Spread,Home Spread Odds,Total,Over Odds,Under Odds\n`;
+        for (const book of odds.bookmakers) {
+          csv += `${book.name || 'N/A'},`;
+          csv += `${book.home_moneyline ? (book.home_moneyline > 0 ? '+' : '') + book.home_moneyline : 'N/A'},`;
+          csv += `${book.away_moneyline ? (book.away_moneyline > 0 ? '+' : '') + book.away_moneyline : 'N/A'},`;
+          csv += `${book.home_spread ? (book.home_spread > 0 ? '+' : '') + book.home_spread : 'N/A'},`;
+          csv += `${book.home_spread_odds ? (book.home_spread_odds > 0 ? '+' : '') + book.home_spread_odds : 'N/A'},`;
+          csv += `${book.total || 'N/A'},`;
+          csv += `${book.over_odds ? (book.over_odds > 0 ? '+' : '') + book.over_odds : 'N/A'},`;
+          csv += `${book.under_odds ? (book.under_odds > 0 ? '+' : '') + book.under_odds : 'N/A'}\n`;
+        }
+      }
+    } else {
+      // ESPN fallback odds
+      csv += `Odds Source,${odds.source || 'ESPN (Limited)'}\n`;
+      csv += `Game State,${odds.game_state || 'N/A'}\n`;
+      csv += `Spread,${odds.spread || 'N/A'}\n`;
+      csv += `Over/Under,${odds.overUnder || 'N/A'}\n`;
+      csv += `Home Moneyline,${odds.homeMoneyline || 'N/A'}\n`;
+      csv += `Away Moneyline,${odds.awayMoneyline || 'N/A'}\n`;
+      csv += `Details,${odds.details || 'N/A'}\n`;
+    }
+    csv += `\n`;
+  } else {
+    csv += `Betting Odds\n`;
+    csv += `No betting odds available for this game\n`;
+    csv += `\n`;
+  }
   
   // Add play-by-play data
   csv += `Play-by-Play Data\n`;
@@ -259,7 +309,7 @@ serve(async (req) => {
           subject: `🏈 Halftime Play-by-Play: ${game.away_team_abbr} @ ${game.home_team_abbr}`,
           html: `
             <h2>Halftime Play-by-Play Export</h2>
-            <p>Game has reached halftime. Attached is the play-by-play data for:</p>
+            <p>Game has reached halftime. Attached is the play-by-play data and betting odds for:</p>
             <ul>
               <li><strong>Game:</strong> ${game.away_team} @ ${game.home_team}</li>
               <li><strong>Score:</strong> ${game.away_team_abbr} ${game.away_score} - ${game.home_team_abbr} ${game.home_score}</li>
@@ -267,7 +317,13 @@ serve(async (req) => {
               <li><strong>Venue:</strong> ${game.venue || 'N/A'}</li>
               <li><strong>Broadcast:</strong> ${game.broadcast || 'N/A'}</li>
             </ul>
-            <p>The attached CSV file contains all play-by-play data up to halftime.</p>
+            <p>The attached CSV file contains:</p>
+            <ul>
+              <li>All play-by-play data up to halftime</li>
+              <li>Detailed betting odds from TheOddsAPI (if available)</li>
+              <li>Multiple sportsbook comparisons for moneyline, spread, and totals</li>
+            </ul>
+            <p><small>Note: Odds are captured at the time of halftime and represent the most recent available data from multiple sportsbooks.</small></p>
           `,
           attachments: [
             {

@@ -6,6 +6,145 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Interface for TheOddsAPI response
+interface OddsAPIGame {
+  id: string;
+  sport_key: string;
+  sport_title: string;
+  commence_time: string;
+  home_team: string;
+  away_team: string;
+  bookmakers: Array<{
+    key: string;
+    title: string;
+    last_update: string;
+    markets: Array<{
+      key: string;
+      last_update: string;
+      outcomes: Array<{
+        name: string;
+        price: number;
+        point?: number;
+      }>;
+    }>;
+  }>;
+}
+
+// Fetch odds from TheOddsAPI
+async function fetchOddsFromAPI(): Promise<Map<string, any>> {
+  const oddsApiKey = Deno.env.get('ODDS_API_KEY');
+  const oddsMap = new Map<string, any>();
+  
+  if (!oddsApiKey) {
+    console.warn('ODDS_API_KEY not configured - skipping odds fetch');
+    return oddsMap;
+  }
+
+  try {
+    // Fetch NFL odds from TheOddsAPI
+    const oddsResponse = await fetch(
+      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${oddsApiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
+    );
+
+    if (!oddsResponse.ok) {
+      console.error(`TheOddsAPI returned ${oddsResponse.status}: ${await oddsResponse.text()}`);
+      return oddsMap;
+    }
+
+    const oddsData: OddsAPIGame[] = await oddsResponse.json();
+    console.log(`Fetched odds for ${oddsData.length} games from TheOddsAPI`);
+
+    // Map odds by team matchup for easy lookup
+    for (const game of oddsData) {
+      const key = `${game.away_team}_${game.home_team}`.toLowerCase().replace(/\s+/g, '_');
+      
+      // Parse odds from multiple bookmakers (use consensus/average)
+      const parsedOdds: any = {
+        commence_time: game.commence_time,
+        bookmakers: [],
+        consensus: {
+          home_ml: null,
+          away_ml: null,
+          spread: null,
+          spread_odds: null,
+          total: null,
+          over_odds: null,
+          under_odds: null,
+        },
+        last_update: new Date().toISOString(),
+      };
+
+      // Extract odds from each bookmaker
+      for (const bookmaker of game.bookmakers) {
+        const bookmakerOdds: any = {
+          name: bookmaker.title,
+          last_update: bookmaker.last_update,
+        };
+
+        for (const market of bookmaker.markets) {
+          if (market.key === 'h2h') {
+            // Moneyline
+            const homeML = market.outcomes.find(o => o.name === game.home_team);
+            const awayML = market.outcomes.find(o => o.name === game.away_team);
+            bookmakerOdds.home_moneyline = homeML?.price || null;
+            bookmakerOdds.away_moneyline = awayML?.price || null;
+          } else if (market.key === 'spreads') {
+            // Spread
+            const homeSpread = market.outcomes.find(o => o.name === game.home_team);
+            const awaySpread = market.outcomes.find(o => o.name === game.away_team);
+            bookmakerOdds.home_spread = homeSpread?.point || null;
+            bookmakerOdds.home_spread_odds = homeSpread?.price || null;
+            bookmakerOdds.away_spread = awaySpread?.point || null;
+            bookmakerOdds.away_spread_odds = awaySpread?.price || null;
+          } else if (market.key === 'totals') {
+            // Over/Under
+            const over = market.outcomes.find(o => o.name === 'Over');
+            const under = market.outcomes.find(o => o.name === 'Under');
+            bookmakerOdds.total = over?.point || under?.point || null;
+            bookmakerOdds.over_odds = over?.price || null;
+            bookmakerOdds.under_odds = under?.price || null;
+          }
+        }
+
+        parsedOdds.bookmakers.push(bookmakerOdds);
+      }
+
+      // Calculate consensus (average of all bookmakers)
+      if (parsedOdds.bookmakers.length > 0) {
+        const calcAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+        
+        const homeMLs = parsedOdds.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
+        const awayMLs = parsedOdds.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
+        const homeSpreads = parsedOdds.bookmakers.map((b: any) => b.home_spread).filter((v: any) => v !== null);
+        const totals = parsedOdds.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
+        
+        parsedOdds.consensus.home_ml = calcAvg(homeMLs);
+        parsedOdds.consensus.away_ml = calcAvg(awayMLs);
+        parsedOdds.consensus.spread = calcAvg(homeSpreads);
+        parsedOdds.consensus.total = calcAvg(totals);
+      }
+
+      oddsMap.set(key, parsedOdds);
+    }
+
+    // Log remaining API usage
+    const remaining = oddsResponse.headers.get('x-requests-remaining');
+    if (remaining) {
+      console.log(`TheOddsAPI requests remaining: ${remaining}`);
+    }
+
+  } catch (error) {
+    console.error('Error fetching odds from TheOddsAPI:', error);
+  }
+
+  return oddsMap;
+}
+
+// Helper to match ESPN team name to Odds API team name
+function normalizeTeamName(teamName: string): string {
+  return teamName.toLowerCase().replace(/\s+/g, '_');
+}
+
 interface ESPNGame {
   id: string;
   date: string;
@@ -59,10 +198,11 @@ serve(async (req) => {
   try {
     console.log('Fetching NFL scoreboard from ESPN API...');
     
-    // Fetch current NFL games from ESPN API
-    const espnResponse = await fetch(
-      'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
-    );
+    // Fetch odds from TheOddsAPI in parallel with ESPN data
+    const [espnResponse, oddsMap] = await Promise.all([
+      fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'),
+      fetchOddsFromAPI()
+    ]);
     
     if (!espnResponse.ok) {
       throw new Error(`ESPN API returned ${espnResponse.status}`);
@@ -99,15 +239,46 @@ serve(async (req) => {
           return stats;
         };
 
-        // Extract betting lines
-        const bettingLines: Record<string, any> = {};
+        // Extract betting lines from ESPN (fallback)
+        const espnBettingLines: Record<string, any> = {};
         if (competition.odds && competition.odds.length > 0) {
           const odds = competition.odds[0];
-          bettingLines.spread = odds.spread || null;
-          bettingLines.overUnder = odds.overUnder || null;
-          bettingLines.homeMoneyline = odds.homeTeamOdds?.moneyLine || null;
-          bettingLines.awayMoneyline = odds.awayTeamOdds?.moneyLine || null;
-          bettingLines.details = odds.details || null;
+          espnBettingLines.spread = odds.spread || null;
+          espnBettingLines.overUnder = odds.overUnder || null;
+          espnBettingLines.homeMoneyline = odds.homeTeamOdds?.moneyLine || null;
+          espnBettingLines.awayMoneyline = odds.awayTeamOdds?.moneyLine || null;
+          espnBettingLines.details = odds.details || null;
+          espnBettingLines.source = 'ESPN';
+        }
+
+        // Try to match with TheOddsAPI odds
+        const oddsKey = `${normalizeTeamName(awayTeam.team.displayName)}_${normalizeTeamName(homeTeam.team.displayName)}`;
+        const oddsApiData = oddsMap.get(oddsKey);
+
+        // Merge betting lines - prefer TheOddsAPI if available, fallback to ESPN
+        const bettingLines: Record<string, any> = oddsApiData ? {
+          // TheOddsAPI data (more detailed)
+          source: 'TheOddsAPI',
+          game_state: competition.status.type.description, // Pregame, In Progress, Halftime, Final
+          last_update: oddsApiData.last_update,
+          consensus: oddsApiData.consensus,
+          bookmakers: oddsApiData.bookmakers,
+          // Keep ESPN data as fallback
+          espn_fallback: espnBettingLines,
+        } : {
+          // ESPN only
+          ...espnBettingLines,
+          game_state: competition.status.type.description,
+          last_update: new Date().toISOString(),
+        };
+
+        // Log if odds were found
+        if (oddsApiData) {
+          console.log(`Matched odds for ${awayTeam.team.abbreviation} @ ${homeTeam.team.abbreviation} from TheOddsAPI`);
+        } else if (Object.keys(espnBettingLines).length > 0) {
+          console.log(`Using ESPN odds for ${awayTeam.team.abbreviation} @ ${homeTeam.team.abbreviation}`);
+        } else {
+          console.log(`No odds available for ${awayTeam.team.abbreviation} @ ${homeTeam.team.abbreviation}`);
         }
 
         // Fetch detailed game summary for stats and play-by-play data

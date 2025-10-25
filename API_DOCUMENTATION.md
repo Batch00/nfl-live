@@ -167,6 +167,42 @@ This endpoint fetches current NFL games from ESPN API and stores snapshots in th
 | `away_stats` | JSON | Away team statistics |
 | `venue` | String | Stadium name |
 | `broadcast` | String | Broadcast network |
+| `betting_lines` | JSON | Real-time betting odds from TheOddsAPI |
+
+### Betting Lines Object
+The `betting_lines` field contains comprehensive odds data from TheOddsAPI (when available):
+
+```json
+{
+  "source": "TheOddsAPI",
+  "game_state": "In Progress",
+  "last_update": "2025-01-10T18:45:32Z",
+  "consensus": {
+    "home_ml": -150,
+    "away_ml": 130,
+    "spread": -3.5,
+    "total": 47.5
+  },
+  "bookmakers": [
+    {
+      "name": "DraftKings",
+      "home_moneyline": -155,
+      "away_moneyline": 135,
+      "home_spread": -3.5,
+      "home_spread_odds": -110,
+      "total": 47.5,
+      "over_odds": -110,
+      "under_odds": -110
+    }
+  ]
+}
+```
+
+**Key Fields:**
+- `source`: Either "TheOddsAPI" (preferred) or "ESPN" (fallback)
+- `game_state`: Pregame, In Progress, Halftime, Final
+- `consensus`: Average odds across all sportsbooks
+- `bookmakers`: Array of individual sportsbook odds for comparison
 
 ### Statistics Object
 The `home_stats` and `away_stats` fields contain objects with keys like:
@@ -176,6 +212,95 @@ The `home_stats` and `away_stats` fields contain objects with keys like:
 - `turnovers`
 - `possessionTime`
 - `firstDowns`
+
+## Betting Odds Integration
+
+### TheOddsAPI Features
+This dashboard integrates with **TheOddsAPI** to provide real-time, comprehensive betting odds:
+
+**Coverage:**
+- Pre-game odds (opening lines)
+- Live in-game odds (updated every 45 seconds)
+- Halftime odds (captured at halftime)
+- Multiple sportsbooks for comparison (DraftKings, FanDuel, BetMGM, etc.)
+
+**Included Markets:**
+- Moneyline (home/away win)
+- Point Spread with odds
+- Over/Under (total points)
+
+**API Key Setup:**
+The dashboard uses TheOddsAPI with a secure API key stored in Lovable Cloud secrets. The free tier provides 500 requests/month, which is sufficient for tracking NFL games (13-16 games per week × 45-second intervals during game time).
+
+**Usage Monitoring:**
+The function logs remaining API requests in the console. Monitor usage in the edge function logs.
+
+### Halftime Odds Export
+
+When a game reaches halftime, the automated email includes:
+
+1. **Consensus Odds** - Average of all sportsbooks
+2. **Individual Sportsbook Comparison** - Detailed odds from each bookmaker
+3. **Timestamp** - Exact time odds were captured
+4. **Game State** - Confirms odds are from halftime
+
+Example halftime CSV includes:
+```
+Betting Odds
+Odds Source,TheOddsAPI
+Game State,Halftime
+Last Updated,2025-01-10T19:30:15Z
+
+Consensus Odds (Average of Multiple Sportsbooks)
+Home Moneyline,+120
+Away Moneyline,-145
+Spread,+2.5
+Total (Over/Under),44.5
+
+Individual Sportsbook Odds
+Sportsbook,Home ML,Away ML,Spread,Home Spread Odds,Total,Over Odds,Under Odds
+DraftKings,+118,-140,+2.5,-110,44.5,-110,-110
+FanDuel,+122,-148,+2.5,-112,44.0,-108,-112
+```
+
+### Python Example: Analyzing Betting Odds
+
+```python
+import requests
+import pandas as pd
+import json
+
+# Fetch game data with betting odds
+API_URL = "https://tjazosfjsxqaaspwsgal.supabase.co/functions/v1/export-game-data"
+response = requests.get(API_URL, params={'format': 'json', 'limit': 1000})
+df = pd.DataFrame(response.json()['data'])
+
+# Parse betting lines
+df['betting_lines_dict'] = df['betting_lines'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
+
+# Extract consensus odds (when TheOddsAPI is source)
+df['home_ml'] = df['betting_lines_dict'].apply(
+    lambda x: x.get('consensus', {}).get('home_ml') if x and x.get('source') == 'TheOddsAPI' else None
+)
+df['spread'] = df['betting_lines_dict'].apply(
+    lambda x: x.get('consensus', {}).get('spread') if x and x.get('source') == 'TheOddsAPI' else None
+)
+df['total'] = df['betting_lines_dict'].apply(
+    lambda x: x.get('consensus', {}).get('total') if x and x.get('source') == 'TheOddsAPI' else None
+)
+
+# Filter halftime games with odds
+halftime_df = df[
+    (df['game_status'] == 'Halftime') & 
+    (df['betting_lines_dict'].notna())
+].copy()
+
+print(f"Found {len(halftime_df)} halftime snapshots with odds")
+print(halftime_df[['game_date', 'home_team_abbr', 'away_team_abbr', 'home_score', 'away_score', 'spread', 'total']].head())
+
+# Compare pre-game vs halftime odds
+# (Requires comparing snapshots from same game_id at different times)
+```
 
 ## Example: Building a Halftime Analysis Dataset
 
