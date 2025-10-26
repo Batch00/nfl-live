@@ -304,7 +304,7 @@ serve(async (req) => {
 
         // Send email with CSV attachment to all recipients
         const emailResult = await resend.emails.send({
-          from: 'NFL Play-by-Play <onboarding@resend.dev>',
+          from: 'NFL Play-by-Play <noreply@randomstep.com>',
           to: recipientEmails,
           subject: `🏈 Halftime Play-by-Play: ${game.away_team_abbr} @ ${game.home_team_abbr}`,
           html: `
