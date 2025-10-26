@@ -12,8 +12,8 @@ verify_jwt = true
 [functions.halftime-emailer]
 verify_jwt = false
 
-# Run every 5 minutes during NFL game days to check for halftime games
+# Run every minute during NFL game days to check for halftime games
 # Cron format: minute hour day month day-of-week
-# This runs every 5 minutes
+# This runs every minute
 [functions.halftime-emailer.cron]
-schedule = "*/5 * * * *"
+schedule = "* * * * *"
