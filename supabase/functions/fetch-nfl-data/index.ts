@@ -285,11 +285,8 @@ serve(async (req) => {
   try {
     console.log('Fetching NFL scoreboard from ESPN API...');
     
-    // Fetch odds from TheOddsAPI in parallel with ESPN data
-    const [espnResponse, oddsMap] = await Promise.all([
-      fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'),
-      fetchOddsFromAPI()
-    ]);
+    // First, fetch ESPN data to check game statuses
+    const espnResponse = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
     
     if (!espnResponse.ok) {
       throw new Error(`ESPN API returned ${espnResponse.status}`);
@@ -297,6 +294,21 @@ serve(async (req) => {
 
     const espnData = await espnResponse.json();
     console.log(`Found ${espnData.events?.length || 0} games`);
+    
+    // Check if any games are at halftime
+    const hasHalftimeGames = espnData.events?.some((event: any) => {
+      const status = event.competitions?.[0]?.status?.type?.description;
+      return status === 'Halftime';
+    });
+    
+    // Only fetch odds from TheOddsAPI if there are halftime games
+    let oddsMap = new Map<string, any>();
+    if (hasHalftimeGames) {
+      console.log('🏈 Halftime game(s) detected - fetching live odds from TheOddsAPI...');
+      oddsMap = await fetchOddsFromAPI();
+    } else {
+      console.log('ℹ️ No halftime games - skipping TheOddsAPI to conserve quota');
+    }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
