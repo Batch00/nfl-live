@@ -77,7 +77,7 @@ function generateCSV(game: GameSnapshot): string {
       
       // Add individual sportsbook odds
       if (odds.bookmakers && odds.bookmakers.length > 0) {
-        csv += `Individual Sportsbook Odds\n`;
+        csv += `Individual Sportsbook Odds (Full Game)\n`;
         csv += `Sportsbook,Home ML,Away ML,Spread,Home Spread Odds,Total,Over Odds,Under Odds\n`;
         for (const book of odds.bookmakers) {
           csv += `${book.name || 'N/A'},`;
@@ -89,6 +89,33 @@ function generateCSV(game: GameSnapshot): string {
           csv += `${book.over_odds ? (book.over_odds > 0 ? '+' : '') + book.over_odds : 'N/A'},`;
           csv += `${book.under_odds ? (book.under_odds > 0 ? '+' : '') + book.under_odds : 'N/A'}\n`;
         }
+      }
+      
+      // Add second half odds if available
+      if (odds.second_half && odds.second_half.bookmakers && odds.second_half.bookmakers.length > 0) {
+        csv += `\n`;
+        csv += `Second Half Odds (LIVE - Key for Betting!)\n`;
+        csv += `Second Half Consensus\n`;
+        csv += `Home Moneyline,${odds.second_half.consensus.home_ml ? (odds.second_half.consensus.home_ml > 0 ? '+' : '') + Math.round(odds.second_half.consensus.home_ml) : 'N/A'}\n`;
+        csv += `Away Moneyline,${odds.second_half.consensus.away_ml ? (odds.second_half.consensus.away_ml > 0 ? '+' : '') + Math.round(odds.second_half.consensus.away_ml) : 'N/A'}\n`;
+        csv += `Spread,${odds.second_half.consensus.spread ? (odds.second_half.consensus.spread > 0 ? '+' : '') + odds.second_half.consensus.spread.toFixed(1) : 'N/A'}\n`;
+        csv += `Total (Over/Under),${odds.second_half.consensus.total ? odds.second_half.consensus.total.toFixed(1) : 'N/A'}\n`;
+        csv += `\n`;
+        csv += `Individual Sportsbook Odds (Second Half)\n`;
+        csv += `Sportsbook,Home ML,Away ML,Spread,Spread Odds,Total,Over Odds\n`;
+        for (const book of odds.second_half.bookmakers) {
+          csv += `${book.name || 'N/A'},`;
+          csv += `${book.home_moneyline ? (book.home_moneyline > 0 ? '+' : '') + book.home_moneyline : 'N/A'},`;
+          csv += `${book.away_moneyline ? (book.away_moneyline > 0 ? '+' : '') + book.away_moneyline : 'N/A'},`;
+          csv += `${book.spread ? (book.spread > 0 ? '+' : '') + book.spread : 'N/A'},`;
+          csv += `${book.spread_odds ? (book.spread_odds > 0 ? '+' : '') + book.spread_odds : 'N/A'},`;
+          csv += `${book.total || 'N/A'},`;
+          csv += `${book.over_odds ? (book.over_odds > 0 ? '+' : '') + book.over_odds : 'N/A'}\n`;
+        }
+      } else {
+        csv += `\n`;
+        csv += `Second Half Odds\n`;
+        csv += `No second half odds available at this time\n`;
       }
     } else {
       // ESPN fallback odds
