@@ -1,7 +1,11 @@
 project_id = "tjazosfjsxqaaspwsgal"
 
 [functions.fetch-nfl-data]
-verify_jwt = true
+verify_jwt = false
+
+# Run every minute to capture live game data and halftime snapshots
+[functions.fetch-nfl-data.cron]
+schedule = "* * * * *"
 
 [functions.export-game-data]
 verify_jwt = true
