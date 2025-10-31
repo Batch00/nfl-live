@@ -96,6 +96,26 @@ const Index = () => {
     );
   };
 
+  // Calculate current NFL week (Thursday-Monday structure)
+  const calculateCurrentNFLWeek = (): number => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const seasonStart = new Date(year, 8, 5); // September 5 baseline
+    
+    const dayOfWeek = now.getDay();
+    const diffTime = now.getTime() - seasonStart.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    let adjustedDays = diffDays;
+    if (dayOfWeek < 4) {
+      adjustedDays = diffDays - dayOfWeek - 3;
+    } else {
+      adjustedDays = diffDays - (dayOfWeek - 4);
+    }
+    
+    return Math.max(1, Math.floor(adjustedDays / 7) + 1);
+  };
+
   const sortedAndFilteredGames = sortGames(filterGames(games));
 
   // Categorize games for display
@@ -272,8 +292,11 @@ const Index = () => {
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
+      // Get current NFL week to filter by
+      const currentWeek = calculateCurrentNFLWeek();
+      
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/export-game-data?format=csv&limit=1000`,
+        `${supabaseUrl}/functions/v1/export-game-data?format=csv&current_week=true`,
         {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,

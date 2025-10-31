@@ -18,6 +18,7 @@ serve(async (req) => {
     const endDate = url.searchParams.get('end_date');
     const limitParam = url.searchParams.get('limit');
     const format = url.searchParams.get('format') || 'json'; // json or csv
+    const currentWeekOnly = url.searchParams.get('current_week') === 'true';
 
     // Validate and parse limit with bounds
     const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam)), 10000) : 1000;
@@ -58,7 +59,37 @@ serve(async (req) => {
       );
     }
 
-    console.log('Export request:', { gameId, startDate, endDate, limit, format });
+    // Calculate current NFL week date range if filtering by current week
+    let calculatedStartDate = startDate;
+    let calculatedEndDate = endDate;
+    
+    if (currentWeekOnly) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const dayOfWeek = now.getDay();
+      
+      // Find this week's Thursday
+      let daysToThursday = 4 - dayOfWeek;
+      if (dayOfWeek < 4) {
+        // If before Thursday, go back to last Thursday
+        daysToThursday -= 7;
+      }
+      
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() + daysToThursday);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6); // Thursday + 6 days = next Wednesday
+      weekEnd.setHours(23, 59, 59, 999);
+      
+      calculatedStartDate = weekStart.toISOString().split('T')[0];
+      calculatedEndDate = weekEnd.toISOString().split('T')[0];
+      
+      console.log(`Current week filter: ${calculatedStartDate} to ${calculatedEndDate}`);
+    }
+
+    console.log('Export request:', { gameId, startDate: calculatedStartDate, endDate: calculatedEndDate, limit, format, currentWeekOnly });
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -76,12 +107,12 @@ serve(async (req) => {
       query = query.eq('game_id', gameId);
     }
 
-    if (startDate) {
-      query = query.gte('game_date', startDate);
+    if (calculatedStartDate) {
+      query = query.gte('game_date', calculatedStartDate);
     }
 
-    if (endDate) {
-      query = query.lte('game_date', endDate);
+    if (calculatedEndDate) {
+      query = query.lte('game_date', calculatedEndDate);
     }
 
     const { data, error } = await query;
