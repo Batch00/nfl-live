@@ -28,16 +28,37 @@ interface GameSnapshot {
 }
 
 // Calculate NFL week from game date
+// NFL weeks run Thursday-Monday, so Thursday games start the new week
 function calculateNFLWeek(gameDate: string): string {
   const date = new Date(gameDate);
-  // NFL season typically starts first Thursday after Labor Day (around Sept 5-11)
-  // For simplicity, we'll use Sept 5 as a baseline for week 1
   const year = date.getFullYear();
-  const seasonStart = new Date(year, 8, 5); // September 5
   
-  const diffTime = date.getTime() - seasonStart.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  const week = Math.max(1, Math.ceil(diffDays / 7));
+  // NFL season starts first Thursday after Labor Day (around Sept 5-11)
+  // Use Sept 5 as baseline for week 1 Thursday
+  const seasonStartBase = new Date(year, 8, 5); // September 5
+  
+  // Get day of week for the game (0=Sunday, 4=Thursday, 6=Saturday)
+  const dayOfWeek = date.getDay();
+  
+  // Calculate days since season start
+  const diffTime = date.getTime() - seasonStartBase.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Adjust for NFL week structure (Thursday-Monday)
+  // If game is Sun-Wed (0-3), it belongs to the week that started with the most recent Thursday
+  // If game is Thu-Sat (4-6), it belongs to the NEW week starting with that Thursday
+  let adjustedDays = diffDays;
+  if (dayOfWeek < 4) {
+    // Sunday (0), Monday (1), Tuesday (2), Wednesday (3) belong to previous Thursday's week
+    // Subtract days to get back to that Thursday
+    adjustedDays = diffDays - dayOfWeek - 3;
+  } else {
+    // Thursday (4), Friday (5), Saturday (6) start new week or are in that week
+    // Thursday is day 0 of the new week
+    adjustedDays = diffDays - (dayOfWeek - 4);
+  }
+  
+  const week = Math.max(1, Math.floor(adjustedDays / 7) + 1);
   
   return String(week).padStart(2, '0');
 }
