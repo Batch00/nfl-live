@@ -25,6 +25,7 @@ interface GameSnapshot {
   play_by_play: any[];
   game_start_time: string;
   betting_lines?: any;
+  created_at: string; // Database timestamp field
 }
 
 // Calculate NFL week from game date
@@ -324,10 +325,17 @@ serve(async (req) => {
     const gameIds = uniqueGames.map(g => g.game_id);
     const { data: alreadyEmailed } = await supabase
       .from('halftime_exports')
-      .select('game_id')
+      .select('game_id, created_at')
       .in('game_id', gameIds);
 
     const emailedGameIds = new Set(alreadyEmailed?.map(e => e.game_id) || []);
+    
+    // Calculate how long each game has been at halftime (for fallback logic)
+    const now = new Date();
+    const getHalftimeAge = (game: GameSnapshot) => {
+      const gameTime = new Date(game.created_at);
+      return Math.floor((now.getTime() - gameTime.getTime()) / 1000 / 60); // minutes
+    };
 
     // Process each halftime game that hasn't been emailed yet
     const results = [];
@@ -348,27 +356,32 @@ serve(async (req) => {
       try {
         console.log(`Processing game ${game.game_id}: ${game.away_team_abbr} @ ${game.home_team_abbr}`);
 
-        // Check if this game has TheOddsAPI odds, if not, skip for now to give fetch-nfl-data time to get them
+        // Check if this game has TheOddsAPI odds
         const hasTheOddsAPIData = game.betting_lines && 
                                    typeof game.betting_lines === 'object' && 
                                    (game.betting_lines as any).source === 'TheOddsAPI';
         
-        if (!hasTheOddsAPIData) {
-          console.log(`⏳ Game ${game.game_id} doesn't have TheOddsAPI odds yet, skipping this run to allow time for odds fetch`);
-          continue;
-        }
-        
         // Check for second half odds specifically
-        const hasSecondHalfOdds = (game.betting_lines as any).second_half && 
+        const hasSecondHalfOdds = hasTheOddsAPIData &&
+                                   (game.betting_lines as any).second_half && 
                                    (game.betting_lines as any).second_half.bookmakers &&
                                    (game.betting_lines as any).second_half.bookmakers.length > 0;
         
-        if (!hasSecondHalfOdds) {
-          console.log(`⏳ Game ${game.game_id} has TheOddsAPI odds but no second half odds yet, skipping this run`);
-          continue;
-        }
+        const halftimeAge = getHalftimeAge(game);
         
-        console.log(`✅ Game ${game.game_id} has complete odds data, proceeding with email`);
+        // FALLBACK LOGIC: After 3 minutes at halftime, send with whatever odds we have
+        // This prevents games from never being sent if odds fetch fails
+        if (!hasTheOddsAPIData || !hasSecondHalfOdds) {
+          if (halftimeAge < 3) {
+            console.log(`⏳ Game ${game.game_id} waiting for complete odds (age: ${halftimeAge}min). TheOddsAPI: ${hasTheOddsAPIData}, SecondHalf: ${hasSecondHalfOdds}`);
+            continue;
+          } else {
+            console.warn(`⚠️ Game ${game.game_id} has been at halftime for ${halftimeAge} minutes without complete odds. Sending with available data.`);
+            console.warn(`   TheOddsAPI data: ${hasTheOddsAPIData}, Second half odds: ${hasSecondHalfOdds}`);
+          }
+        } else {
+          console.log(`✅ Game ${game.game_id} has complete odds data (age: ${halftimeAge}min), proceeding with email`);
+        }
 
         // Generate CSV content
         const csvContent = generateCSV(game);
