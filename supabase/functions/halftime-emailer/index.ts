@@ -296,10 +296,24 @@ serve(async (req) => {
       );
     }
 
-    // Deduplicate games - keep only the most recent snapshot per game_id
+    // Deduplicate games - keep only the most recent snapshot per game_id that has TheOddsAPI odds
     const uniqueGamesMap = new Map<string, GameSnapshot>();
     for (const game of halftimeGames as GameSnapshot[]) {
-      if (!uniqueGamesMap.has(game.game_id)) {
+      const existingGame = uniqueGamesMap.get(game.game_id);
+      
+      // Check if this snapshot has TheOddsAPI odds (better than ESPN fallback)
+      const hasTheOddsAPIData = game.betting_lines && 
+                                 typeof game.betting_lines === 'object' && 
+                                 (game.betting_lines as any).source === 'TheOddsAPI';
+      
+      const existingHasTheOddsAPIData = existingGame?.betting_lines && 
+                                         typeof existingGame.betting_lines === 'object' && 
+                                         (existingGame.betting_lines as any).source === 'TheOddsAPI';
+      
+      // Prefer snapshots with TheOddsAPI data, otherwise take the most recent
+      if (!existingGame || 
+          (hasTheOddsAPIData && !existingHasTheOddsAPIData) ||
+          (hasTheOddsAPIData === existingHasTheOddsAPIData && !existingGame)) {
         uniqueGamesMap.set(game.game_id, game);
       }
     }
@@ -333,6 +347,28 @@ serve(async (req) => {
 
       try {
         console.log(`Processing game ${game.game_id}: ${game.away_team_abbr} @ ${game.home_team_abbr}`);
+
+        // Check if this game has TheOddsAPI odds, if not, skip for now to give fetch-nfl-data time to get them
+        const hasTheOddsAPIData = game.betting_lines && 
+                                   typeof game.betting_lines === 'object' && 
+                                   (game.betting_lines as any).source === 'TheOddsAPI';
+        
+        if (!hasTheOddsAPIData) {
+          console.log(`⏳ Game ${game.game_id} doesn't have TheOddsAPI odds yet, skipping this run to allow time for odds fetch`);
+          continue;
+        }
+        
+        // Check for second half odds specifically
+        const hasSecondHalfOdds = (game.betting_lines as any).second_half && 
+                                   (game.betting_lines as any).second_half.bookmakers &&
+                                   (game.betting_lines as any).second_half.bookmakers.length > 0;
+        
+        if (!hasSecondHalfOdds) {
+          console.log(`⏳ Game ${game.game_id} has TheOddsAPI odds but no second half odds yet, skipping this run`);
+          continue;
+        }
+        
+        console.log(`✅ Game ${game.game_id} has complete odds data, proceeding with email`);
 
         // Generate CSV content
         const csvContent = generateCSV(game);
