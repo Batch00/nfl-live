@@ -41,9 +41,9 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
   }
 
   try {
-    // Fetch NFL odds from TheOddsAPI including second half markets (only called at halftime to conserve quota)
+    // Fetch NFL odds from TheOddsAPI - only full game markets (second half fetched separately per-event)
     const oddsResponse = await fetch(
-      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${oddsApiKey}&regions=us&markets=h2h,spreads,totals,h2h_h2,spreads_h2,totals_h2&oddsFormat=american`
+      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey=${oddsApiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
     );
 
     if (!oddsResponse.ok) {
@@ -60,6 +60,7 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
       
       // Parse odds from multiple bookmakers (use consensus/average)
       const parsedOdds: any = {
+        event_id: game.id, // Store TheOddsAPI event ID for second half odds fetch
         commence_time: game.commence_time,
         bookmakers: [],
         consensus: {
@@ -71,24 +72,7 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
           over_odds: null,
           under_odds: null,
         },
-        first_half: {
-          consensus: {
-            home_ml: null,
-            away_ml: null,
-            spread: null,
-            total: null,
-          },
-          bookmakers: [],
-        },
-        second_half: {
-          consensus: {
-            home_ml: null,
-            away_ml: null,
-            spread: null,
-            total: null,
-          },
-          bookmakers: [],
-        },
+        // second_half will be added later for halftime games
         last_update: new Date().toISOString(),
       };
 
@@ -98,9 +82,6 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
           name: bookmaker.title,
           last_update: bookmaker.last_update,
         };
-        
-        const firstHalfOdds: any = { name: bookmaker.title };
-        const secondHalfOdds: any = { name: bookmaker.title };
 
         for (const market of bookmaker.markets) {
           if (market.key === 'h2h') {
@@ -124,50 +105,10 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
             bookmakerOdds.total = over?.point || under?.point || null;
             bookmakerOdds.over_odds = over?.price || null;
             bookmakerOdds.under_odds = under?.price || null;
-          } else if (market.key === 'h2h_h1') {
-            // First half moneyline
-            const homeML = market.outcomes.find(o => o.name === game.home_team);
-            const awayML = market.outcomes.find(o => o.name === game.away_team);
-            firstHalfOdds.home_moneyline = homeML?.price || null;
-            firstHalfOdds.away_moneyline = awayML?.price || null;
-          } else if (market.key === 'spreads_h1') {
-            // First half spread
-            const homeSpread = market.outcomes.find(o => o.name === game.home_team);
-            firstHalfOdds.spread = homeSpread?.point || null;
-            firstHalfOdds.spread_odds = homeSpread?.price || null;
-          } else if (market.key === 'totals_h1') {
-            // First half over/under
-            const over = market.outcomes.find(o => o.name === 'Over');
-            firstHalfOdds.total = over?.point || null;
-            firstHalfOdds.over_odds = over?.price || null;
-          } else if (market.key === 'h2h_h2') {
-            // Second half moneyline
-            const homeML = market.outcomes.find(o => o.name === game.home_team);
-            const awayML = market.outcomes.find(o => o.name === game.away_team);
-            secondHalfOdds.home_moneyline = homeML?.price || null;
-            secondHalfOdds.away_moneyline = awayML?.price || null;
-          } else if (market.key === 'spreads_h2') {
-            // Second half spread
-            const homeSpread = market.outcomes.find(o => o.name === game.home_team);
-            secondHalfOdds.spread = homeSpread?.point || null;
-            secondHalfOdds.spread_odds = homeSpread?.price || null;
-          } else if (market.key === 'totals_h2') {
-            // Second half over/under
-            const over = market.outcomes.find(o => o.name === 'Over');
-            secondHalfOdds.total = over?.point || null;
-            secondHalfOdds.over_odds = over?.price || null;
           }
         }
 
         parsedOdds.bookmakers.push(bookmakerOdds);
-        
-        // Only add half odds if they have data
-        if (Object.keys(firstHalfOdds).length > 1) {
-          parsedOdds.first_half.bookmakers.push(firstHalfOdds);
-        }
-        if (Object.keys(secondHalfOdds).length > 1) {
-          parsedOdds.second_half.bookmakers.push(secondHalfOdds);
-        }
       }
 
       // Calculate consensus (average of all bookmakers)
@@ -184,32 +125,6 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
         parsedOdds.consensus.spread = calcAvg(homeSpreads);
         parsedOdds.consensus.total = calcAvg(totals);
       }
-      
-      // Calculate first half consensus
-      if (parsedOdds.first_half.bookmakers.length > 0) {
-        const h1HomeMLs = parsedOdds.first_half.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
-        const h1AwayMLs = parsedOdds.first_half.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
-        const h1Spreads = parsedOdds.first_half.bookmakers.map((b: any) => b.spread).filter((v: any) => v !== null);
-        const h1Totals = parsedOdds.first_half.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
-        
-        parsedOdds.first_half.consensus.home_ml = calcAvg(h1HomeMLs);
-        parsedOdds.first_half.consensus.away_ml = calcAvg(h1AwayMLs);
-        parsedOdds.first_half.consensus.spread = calcAvg(h1Spreads);
-        parsedOdds.first_half.consensus.total = calcAvg(h1Totals);
-      }
-      
-      // Calculate second half consensus
-      if (parsedOdds.second_half.bookmakers.length > 0) {
-        const h2HomeMLs = parsedOdds.second_half.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
-        const h2AwayMLs = parsedOdds.second_half.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
-        const h2Spreads = parsedOdds.second_half.bookmakers.map((b: any) => b.spread).filter((v: any) => v !== null);
-        const h2Totals = parsedOdds.second_half.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
-        
-        parsedOdds.second_half.consensus.home_ml = calcAvg(h2HomeMLs);
-        parsedOdds.second_half.consensus.away_ml = calcAvg(h2AwayMLs);
-        parsedOdds.second_half.consensus.spread = calcAvg(h2Spreads);
-        parsedOdds.second_half.consensus.total = calcAvg(h2Totals);
-      }
 
       oddsMap.set(key, parsedOdds);
     }
@@ -225,6 +140,85 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
   }
 
   return oddsMap;
+}
+
+// Fetch second half odds for a specific event (TheOddsAPI event ID)
+async function fetchSecondHalfOdds(theOddsApiEventId: string): Promise<any | null> {
+  const oddsApiKey = Deno.env.get('ODDS_API_KEY');
+  
+  if (!oddsApiKey) {
+    return null;
+  }
+
+  try {
+    // Use per-event endpoint to get second half markets
+    const oddsResponse = await fetch(
+      `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/${theOddsApiEventId}/odds?apiKey=${oddsApiKey}&regions=us&markets=h2h_h2,spreads_h2,totals_h2&oddsFormat=american`
+    );
+
+    if (!oddsResponse.ok) {
+      console.error(`TheOddsAPI event odds returned ${oddsResponse.status}: ${await oddsResponse.text()}`);
+      return null;
+    }
+
+    const eventOdds: OddsAPIGame = await oddsResponse.json();
+    
+    // Parse second half odds from bookmakers
+    const secondHalfData: any = {
+      consensus: {
+        home_ml: null,
+        away_ml: null,
+        spread: null,
+        total: null,
+      },
+      bookmakers: [],
+    };
+
+    for (const bookmaker of eventOdds.bookmakers || []) {
+      const bookmakerOdds: any = { name: bookmaker.title };
+
+      for (const market of bookmaker.markets) {
+        if (market.key === 'h2h_h2') {
+          const homeML = market.outcomes.find(o => o.name === eventOdds.home_team);
+          const awayML = market.outcomes.find(o => o.name === eventOdds.away_team);
+          bookmakerOdds.home_moneyline = homeML?.price || null;
+          bookmakerOdds.away_moneyline = awayML?.price || null;
+        } else if (market.key === 'spreads_h2') {
+          const homeSpread = market.outcomes.find(o => o.name === eventOdds.home_team);
+          bookmakerOdds.spread = homeSpread?.point || null;
+          bookmakerOdds.spread_odds = homeSpread?.price || null;
+        } else if (market.key === 'totals_h2') {
+          const over = market.outcomes.find(o => o.name === 'Over');
+          bookmakerOdds.total = over?.point || null;
+          bookmakerOdds.over_odds = over?.price || null;
+        }
+      }
+
+      if (Object.keys(bookmakerOdds).length > 1) {
+        secondHalfData.bookmakers.push(bookmakerOdds);
+      }
+    }
+
+    // Calculate consensus
+    const calcAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    
+    if (secondHalfData.bookmakers.length > 0) {
+      const homeMLs = secondHalfData.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
+      const awayMLs = secondHalfData.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
+      const spreads = secondHalfData.bookmakers.map((b: any) => b.spread).filter((v: any) => v !== null);
+      const totals = secondHalfData.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
+      
+      secondHalfData.consensus.home_ml = calcAvg(homeMLs);
+      secondHalfData.consensus.away_ml = calcAvg(awayMLs);
+      secondHalfData.consensus.spread = calcAvg(spreads);
+      secondHalfData.consensus.total = calcAvg(totals);
+    }
+
+    return secondHalfData.bookmakers.length > 0 ? secondHalfData : null;
+  } catch (error) {
+    console.error(`Error fetching second half odds for event ${theOddsApiEventId}:`, error);
+    return null;
+  }
 }
 
 // Helper to match ESPN team name to Odds API team name
@@ -352,7 +346,21 @@ serve(async (req) => {
 
         // Try to match with TheOddsAPI odds
         const oddsKey = `${normalizeTeamName(awayTeam.team.displayName)}_${normalizeTeamName(homeTeam.team.displayName)}`;
-        const oddsApiData = oddsMap.get(oddsKey);
+        let oddsApiData = oddsMap.get(oddsKey);
+
+        // If this is a halftime game, fetch second half odds using the stored event ID
+        const isHalftime = competition.status.type.description === 'Halftime';
+        if (isHalftime && oddsApiData && oddsApiData.event_id) {
+          console.log(`Fetching second half odds for ${awayTeam.team.abbreviation} @ ${homeTeam.team.abbreviation}...`);
+          const secondHalfOdds = await fetchSecondHalfOdds(oddsApiData.event_id);
+          
+          if (secondHalfOdds) {
+            oddsApiData.second_half = secondHalfOdds;
+            console.log(`✅ Second half odds added for ${awayTeam.team.abbreviation} @ ${homeTeam.team.abbreviation}`);
+          } else {
+            console.log(`⚠️ No second half odds available for ${awayTeam.team.abbreviation} @ ${homeTeam.team.abbreviation}`);
+          }
+        }
 
         // Merge betting lines - prefer TheOddsAPI if available, fallback to ESPN
         const bettingLines: Record<string, any> = oddsApiData ? {
@@ -362,6 +370,8 @@ serve(async (req) => {
           last_update: oddsApiData.last_update,
           consensus: oddsApiData.consensus,
           bookmakers: oddsApiData.bookmakers,
+          // Include second half odds if available
+          ...(oddsApiData.second_half && { second_half: oddsApiData.second_half }),
           // Keep ESPN data as fallback
           espn_fallback: espnBettingLines,
         } : {
