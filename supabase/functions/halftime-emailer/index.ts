@@ -298,9 +298,18 @@ serve(async (req) => {
     }
 
     // Deduplicate games - keep only the most recent snapshot per game_id that has TheOddsAPI odds
+    // Also track the OLDEST halftime timestamp for each game to calculate true halftime age
     const uniqueGamesMap = new Map<string, GameSnapshot>();
+    const oldestHalftimeTimestamps = new Map<string, string>();
+    
     for (const game of halftimeGames as GameSnapshot[]) {
       const existingGame = uniqueGamesMap.get(game.game_id);
+      
+      // Track the oldest halftime timestamp for this game
+      const currentOldest = oldestHalftimeTimestamps.get(game.game_id);
+      if (!currentOldest || game.created_at < currentOldest) {
+        oldestHalftimeTimestamps.set(game.game_id, game.created_at);
+      }
       
       // Check if this snapshot has TheOddsAPI odds (better than ESPN fallback)
       const hasTheOddsAPIData = game.betting_lines && 
@@ -331,10 +340,13 @@ serve(async (req) => {
     const emailedGameIds = new Set(alreadyEmailed?.map(e => e.game_id) || []);
     
     // Calculate how long each game has been at halftime (for fallback logic)
+    // Use the OLDEST halftime snapshot timestamp, not the most recent one
     const now = new Date();
-    const getHalftimeAge = (game: GameSnapshot) => {
-      const gameTime = new Date(game.created_at);
-      return Math.floor((now.getTime() - gameTime.getTime()) / 1000 / 60); // minutes
+    const getHalftimeAge = (gameId: string) => {
+      const oldestTimestamp = oldestHalftimeTimestamps.get(gameId);
+      if (!oldestTimestamp) return 0;
+      const firstHalftimeTime = new Date(oldestTimestamp);
+      return Math.floor((now.getTime() - firstHalftimeTime.getTime()) / 1000 / 60); // minutes
     };
 
     // Process each halftime game that hasn't been emailed yet
@@ -367,7 +379,7 @@ serve(async (req) => {
                                    (game.betting_lines as any).second_half.bookmakers &&
                                    (game.betting_lines as any).second_half.bookmakers.length > 0;
         
-        const halftimeAge = getHalftimeAge(game);
+        const halftimeAge = getHalftimeAge(game.game_id);
         
         // FALLBACK LOGIC: After 3 minutes at halftime, send with whatever odds we have
         // This prevents games from never being sent if odds fetch fails
