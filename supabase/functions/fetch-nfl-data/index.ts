@@ -289,10 +289,14 @@ serve(async (req) => {
     const espnData = await espnResponse.json();
     console.log(`Found ${espnData.events?.length || 0} games`);
     
-    // Check if any games are at halftime
+    // Check if any games are at halftime or end of 2nd quarter
     const hasHalftimeGames = espnData.events?.some((event: any) => {
       const status = event.competitions?.[0]?.status?.type?.description;
-      return status === 'Halftime';
+      const period = event.competitions?.[0]?.status?.period;
+      // Consider halftime if: status is "Halftime", "End of 2nd Quarter", or period is 2 with clock at 0:00
+      return status === 'Halftime' || 
+             status === 'End of 2nd Quarter' ||
+             (period === 2 && event.competitions?.[0]?.status?.displayClock === '0:00');
     });
     
     // Only fetch odds from TheOddsAPI if there are halftime games
@@ -457,6 +461,16 @@ serve(async (req) => {
         const finalHomeStats = Object.keys(detailedHomeStats).length > 0 ? detailedHomeStats : extractStats(homeTeam);
         const finalAwayStats = Object.keys(detailedAwayStats).length > 0 ? detailedAwayStats : extractStats(awayTeam);
         
+        // Normalize game status to capture halftime more reliably
+        let normalizedStatus = competition.status.type.description;
+        const period = competition.status.period;
+        const clock = competition.status.displayClock;
+        
+        // If period is 2 and clock is at 0:00, or status is "End of 2nd Quarter", treat as Halftime
+        if ((period === 2 && clock === '0:00') || normalizedStatus === 'End of 2nd Quarter') {
+          normalizedStatus = 'Halftime';
+        }
+        
         const snapshot = {
           game_id: game.id,
           game_date: new Date(game.date).toISOString().split('T')[0],
@@ -469,7 +483,7 @@ serve(async (req) => {
           away_score: parseInt(awayTeam.score) || 0,
           quarter: competition.status.period,
           clock: competition.status.displayClock,
-          game_status: competition.status.type.description,
+          game_status: normalizedStatus,
           home_stats: finalHomeStats,
           away_stats: finalAwayStats,
           venue: competition.venue?.fullName || null,
