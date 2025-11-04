@@ -118,12 +118,18 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
         const homeMLs = parsedOdds.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
         const awayMLs = parsedOdds.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
         const homeSpreads = parsedOdds.bookmakers.map((b: any) => b.home_spread).filter((v: any) => v !== null);
+        const spreadOdds = parsedOdds.bookmakers.map((b: any) => b.home_spread_odds).filter((v: any) => v !== null);
         const totals = parsedOdds.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
+        const overOdds = parsedOdds.bookmakers.map((b: any) => b.over_odds).filter((v: any) => v !== null);
+        const underOdds = parsedOdds.bookmakers.map((b: any) => b.under_odds).filter((v: any) => v !== null);
         
         parsedOdds.consensus.home_ml = calcAvg(homeMLs);
         parsedOdds.consensus.away_ml = calcAvg(awayMLs);
         parsedOdds.consensus.spread = calcAvg(homeSpreads);
+        parsedOdds.consensus.spread_odds = calcAvg(spreadOdds);
         parsedOdds.consensus.total = calcAvg(totals);
+        parsedOdds.consensus.over_odds = calcAvg(overOdds);
+        parsedOdds.consensus.under_odds = calcAvg(underOdds);
       }
 
       oddsMap.set(key, parsedOdds);
@@ -169,7 +175,9 @@ async function fetchSecondHalfOdds(theOddsApiEventId: string): Promise<any | nul
         home_ml: null,
         away_ml: null,
         spread: null,
+        spread_odds: null,
         total: null,
+        over_odds: null,
       },
       bookmakers: [],
     };
@@ -206,12 +214,16 @@ async function fetchSecondHalfOdds(theOddsApiEventId: string): Promise<any | nul
       const homeMLs = secondHalfData.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
       const awayMLs = secondHalfData.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
       const spreads = secondHalfData.bookmakers.map((b: any) => b.spread).filter((v: any) => v !== null);
+      const spreadOdds = secondHalfData.bookmakers.map((b: any) => b.spread_odds).filter((v: any) => v !== null);
       const totals = secondHalfData.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
+      const overOdds = secondHalfData.bookmakers.map((b: any) => b.over_odds).filter((v: any) => v !== null);
       
       secondHalfData.consensus.home_ml = calcAvg(homeMLs);
       secondHalfData.consensus.away_ml = calcAvg(awayMLs);
       secondHalfData.consensus.spread = calcAvg(spreads);
+      secondHalfData.consensus.spread_odds = calcAvg(spreadOdds);
       secondHalfData.consensus.total = calcAvg(totals);
+      secondHalfData.consensus.over_odds = calcAvg(overOdds);
     }
 
     return secondHalfData.bookmakers.length > 0 ? secondHalfData : null;
