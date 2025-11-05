@@ -78,6 +78,186 @@ class HalftimeDataClient:
         response = self.supabase.table('halftime_exports').select('*').eq('game_id', game_id).execute()
         return response.data[0] if response.data else None
     
+    def get_metadata_df(self, game_id: str) -> Optional[pd.DataFrame]:
+        """
+        Fetch game metadata as a pandas DataFrame.
+        
+        Args:
+            game_id: The game ID to fetch
+            
+        Returns:
+            pandas DataFrame with metadata as key-value pairs
+            
+        Example:
+            client = HalftimeDataClient()
+            metadata = client.get_metadata_df('401671760')
+            metadata
+        """
+        # Fetch the CSV content from database
+        response = self.supabase.table('halftime_exports').select('csv_content').eq('game_id', game_id).execute()
+        
+        if not response.data or not response.data[0].get('csv_content'):
+            print(f"No CSV content found for game_id: {game_id}")
+            return None
+        
+        csv_content = response.data[0]['csv_content']
+        lines = csv_content.split('\n')
+        
+        # Extract metadata section (between "Game Metadata" and "Betting Odds")
+        metadata = {}
+        in_metadata = False
+        
+        for line in lines:
+            if line.strip() == 'Game Metadata':
+                in_metadata = True
+                continue
+            if line.strip() == 'Betting Odds':
+                break
+            if in_metadata and line.strip() and ',' in line:
+                parts = line.split(',', 1)
+                if len(parts) == 2:
+                    metadata[parts[0].strip()] = parts[1].strip()
+        
+        if not metadata:
+            print("Could not find metadata section in CSV")
+            return None
+        
+        # Convert to DataFrame with Field and Value columns
+        df = pd.DataFrame(list(metadata.items()), columns=['Field', 'Value'])
+        return df
+    
+    def get_betting_odds_df(self, game_id: str) -> Optional[Dict[str, pd.DataFrame]]:
+        """
+        Fetch betting odds as pandas DataFrames.
+        
+        Returns a dictionary with different odds sections:
+        - 'consensus': Consensus odds for full game
+        - 'sportsbooks': Individual sportsbook odds for full game
+        - 'second_half_consensus': Consensus odds for second half (if available)
+        - 'second_half_sportsbooks': Individual sportsbook odds for second half (if available)
+        
+        Args:
+            game_id: The game ID to fetch
+            
+        Returns:
+            Dictionary of DataFrames with betting odds, or None if not found
+            
+        Example:
+            client = HalftimeDataClient()
+            odds = client.get_betting_odds_df('401671760')
+            odds['consensus']
+            odds['sportsbooks']
+        """
+        # Fetch the CSV content from database
+        response = self.supabase.table('halftime_exports').select('csv_content').eq('game_id', game_id).execute()
+        
+        if not response.data or not response.data[0].get('csv_content'):
+            print(f"No CSV content found for game_id: {game_id}")
+            return None
+        
+        csv_content = response.data[0]['csv_content']
+        lines = csv_content.split('\n')
+        
+        result = {}
+        
+        # Find the Betting Odds section
+        odds_start = None
+        for i, line in enumerate(lines):
+            if line.strip() == 'Betting Odds':
+                odds_start = i + 1
+                break
+        
+        if odds_start is None:
+            print("Could not find 'Betting Odds' section in CSV")
+            return None
+        
+        # Parse consensus odds (full game)
+        consensus_data = {}
+        i = odds_start
+        while i < len(lines):
+            line = lines[i].strip()
+            if line == 'Individual Sportsbook Odds (Full Game)':
+                break
+            if line and ',' in line and not line.startswith('Odds Source') and not line.startswith('Game State') and not line.startswith('Last Updated'):
+                parts = line.split(',', 1)
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value = parts[1].strip()
+                    if key in ['Home Moneyline', 'Away Moneyline', 'Spread', 'Total (Over/Under)']:
+                        consensus_data[key] = value
+            i += 1
+        
+        if consensus_data:
+            result['consensus'] = pd.DataFrame([consensus_data])
+        
+        # Parse individual sportsbook odds (full game)
+        while i < len(lines):
+            if lines[i].strip() == 'Individual Sportsbook Odds (Full Game)':
+                i += 1
+                # Next line should be headers
+                if i < len(lines):
+                    headers = lines[i].strip()
+                    i += 1
+                    # Collect rows until we hit a blank line or next section
+                    rows = []
+                    while i < len(lines):
+                        line = lines[i].strip()
+                        if not line or line.startswith('Second Half') or line == 'Play-by-Play Data':
+                            break
+                        rows.append(line)
+                        i += 1
+                    
+                    if rows:
+                        csv_data = headers + '\n' + '\n'.join(rows)
+                        result['sportsbooks'] = pd.read_csv(StringIO(csv_data))
+                break
+            i += 1
+        
+        # Parse second half consensus
+        second_half_consensus = {}
+        for i, line in enumerate(lines):
+            if line.strip() == 'Second Half Consensus':
+                i += 1
+                while i < len(lines):
+                    line = lines[i].strip()
+                    if line == 'Individual Sportsbook Odds (Second Half)' or not line:
+                        break
+                    if ',' in line:
+                        parts = line.split(',', 1)
+                        if len(parts) == 2:
+                            key = parts[0].strip()
+                            value = parts[1].strip()
+                            if key in ['Home Moneyline', 'Away Moneyline', 'Spread', 'Total (Over/Under)']:
+                                second_half_consensus[key] = value
+                    i += 1
+                break
+        
+        if second_half_consensus:
+            result['second_half_consensus'] = pd.DataFrame([second_half_consensus])
+        
+        # Parse second half sportsbook odds
+        for i, line in enumerate(lines):
+            if line.strip() == 'Individual Sportsbook Odds (Second Half)':
+                i += 1
+                # Next line should be headers
+                if i < len(lines):
+                    headers = lines[i].strip()
+                    i += 1
+                    rows = []
+                    while i < len(lines):
+                        line = lines[i].strip()
+                        if not line or line == 'Play-by-Play Data':
+                            break
+                        rows.append(line)
+                        i += 1
+                    
+                    if rows:
+                        csv_data = headers + '\n' + '\n'.join(rows)
+                        result['second_half_sportsbooks'] = pd.read_csv(StringIO(csv_data))
+                break
+        
+        return result if result else None
+    
     def get_play_by_play_df(self, game_id: str) -> Optional[pd.DataFrame]:
         """
         Fetch play-by-play data for a specific game as a pandas DataFrame.
@@ -179,11 +359,29 @@ def run_examples():
         print(f"  - {game['csv_filename']}")
     print()
     
-    # Example 3: Get play-by-play DataFrame for a game
+    # Example 3: Get metadata for a game
     all_games = client.get_all_games()
     if all_games:
-        print("📊 Example 3: Load play-by-play data into DataFrame")
         game_id = all_games[0]['game_id']
+        
+        print(f"📊 Example 3: Get metadata for game {game_id}")
+        metadata = client.get_metadata_df(game_id)
+        if metadata is not None:
+            print(metadata.to_string(index=False))
+        print()
+        
+        print(f"📊 Example 4: Get betting odds for game {game_id}")
+        odds = client.get_betting_odds_df(game_id)
+        if odds:
+            print("  Available odds sections:", list(odds.keys()))
+            if 'consensus' in odds:
+                print("\n  Consensus odds:")
+                print(odds['consensus'].to_string(index=False))
+            if 'sportsbooks' in odds:
+                print(f"\n  Individual sportsbooks: {len(odds['sportsbooks'])} books")
+        print()
+        
+        print(f"📊 Example 5: Load play-by-play data into DataFrame")
         print(f"  Loading data for game {game_id}...")
         
         df = client.get_play_by_play_df(game_id)
@@ -212,16 +410,27 @@ client = HalftimeDataClient()
 available_games = client.list_available_games()
 available_games
 
-# Cell 3: Get play-by-play data for a specific game
+# Cell 3: Get metadata for a game
 game_id = '401671760'  # Use a game_id from the available games
-df = client.get_play_by_play_df(game_id)
+metadata = client.get_metadata_df(game_id)
+metadata
 
-# Cell 4: Work with the DataFrame
+# Cell 4: Get betting odds
+odds = client.get_betting_odds_df(game_id)
+odds['consensus']  # Full game consensus
+odds['sportsbooks']  # Individual sportsbooks full game
+odds['second_half_consensus']  # Second half consensus (if available)
+odds['second_half_sportsbooks']  # Second half sportsbooks (if available)
+
+# Cell 5: Get play-by-play data
+df = client.get_play_by_play_df(game_id)
 df.head()
+
+# Cell 6: Work with the DataFrame
 df.describe()
 df['Play Type'].value_counts()
 
-# Cell 5: Filter and analyze
+# Cell 7: Filter and analyze
 pass_plays = df[df['Play Type'] == 'Pass Reception']
 pass_plays.head()
 """
