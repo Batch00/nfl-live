@@ -253,11 +253,13 @@ serve(async (req) => {
     }
     const resend = new Resend(resendApiKey);
 
-    // Query for games at halftime
+    // Query for games at halftime - only from the last 6 hours to avoid processing old games
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
     const { data: halftimeGames, error: queryError } = await supabase
       .from('game_snapshots')
       .select('*')
       .eq('game_status', 'Halftime')
+      .gte('created_at', sixHoursAgo)
       .order('created_at', { ascending: false });
 
     if (queryError) {
