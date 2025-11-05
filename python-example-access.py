@@ -131,8 +131,8 @@ class HalftimeDataClient:
         Fetch betting odds as pandas DataFrames.
         
         Returns a dictionary with different odds sections:
-        - 'consensus': Consensus odds for full game
-        - 'sportsbooks': Individual sportsbook odds for full game
+        - 'consensus': Consensus odds for full game (if available)
+        - 'sportsbooks': Individual sportsbook odds for full game (if available)
         - 'second_half_consensus': Consensus odds for second half (if available)
         - 'second_half_sportsbooks': Individual sportsbook odds for second half (if available)
         
@@ -140,13 +140,17 @@ class HalftimeDataClient:
             game_id: The game ID to fetch
             
         Returns:
-            Dictionary of DataFrames with betting odds, or None if not found
+            Dictionary of DataFrames with betting odds, or None if no odds found
+            Check if a key exists before accessing: if 'sportsbooks' in odds: ...
             
         Example:
             client = HalftimeDataClient()
             odds = client.get_betting_odds_df('401671760')
-            odds['consensus']
-            odds['sportsbooks']
+            if odds:
+                if 'consensus' in odds:
+                    print(odds['consensus'])
+                if 'sportsbooks' in odds:
+                    print(odds['sportsbooks'])
         """
         # Fetch the CSV content from database
         response = self.supabase.table('halftime_exports').select('csv_content').eq('game_id', game_id).execute()
@@ -256,7 +260,11 @@ class HalftimeDataClient:
                         result['second_half_sportsbooks'] = pd.read_csv(StringIO(csv_data))
                 break
         
-        return result if result else None
+        if not result:
+            print(f"No betting odds data found for game_id: {game_id}")
+            return None
+        
+        return result
     
     def get_play_by_play_df(self, game_id: str) -> Optional[pd.DataFrame]:
         """
