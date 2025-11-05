@@ -112,16 +112,17 @@ async function fetchOddsFromAPI(): Promise<Map<string, any>> {
       }
 
       // Calculate consensus (average of all bookmakers)
+      // Filter out both null and undefined values to ignore missing odds
       const calcAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
       
       if (parsedOdds.bookmakers.length > 0) {
-        const homeMLs = parsedOdds.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
-        const awayMLs = parsedOdds.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
-        const homeSpreads = parsedOdds.bookmakers.map((b: any) => b.home_spread).filter((v: any) => v !== null);
-        const spreadOdds = parsedOdds.bookmakers.map((b: any) => b.home_spread_odds).filter((v: any) => v !== null);
-        const totals = parsedOdds.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
-        const overOdds = parsedOdds.bookmakers.map((b: any) => b.over_odds).filter((v: any) => v !== null);
-        const underOdds = parsedOdds.bookmakers.map((b: any) => b.under_odds).filter((v: any) => v !== null);
+        const homeMLs = parsedOdds.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => typeof v === 'number');
+        const awayMLs = parsedOdds.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => typeof v === 'number');
+        const homeSpreads = parsedOdds.bookmakers.map((b: any) => b.home_spread).filter((v: any) => typeof v === 'number');
+        const spreadOdds = parsedOdds.bookmakers.map((b: any) => b.home_spread_odds).filter((v: any) => typeof v === 'number');
+        const totals = parsedOdds.bookmakers.map((b: any) => b.total).filter((v: any) => typeof v === 'number');
+        const overOdds = parsedOdds.bookmakers.map((b: any) => b.over_odds).filter((v: any) => typeof v === 'number');
+        const underOdds = parsedOdds.bookmakers.map((b: any) => b.under_odds).filter((v: any) => typeof v === 'number');
         
         parsedOdds.consensus.home_ml = calcAvg(homeMLs);
         parsedOdds.consensus.away_ml = calcAvg(awayMLs);
@@ -207,16 +208,16 @@ async function fetchSecondHalfOdds(theOddsApiEventId: string): Promise<any | nul
       }
     }
 
-    // Calculate consensus
+    // Calculate consensus - filter out null and undefined to ignore missing odds
     const calcAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
     
     if (secondHalfData.bookmakers.length > 0) {
-      const homeMLs = secondHalfData.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => v !== null);
-      const awayMLs = secondHalfData.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => v !== null);
-      const spreads = secondHalfData.bookmakers.map((b: any) => b.spread).filter((v: any) => v !== null);
-      const spreadOdds = secondHalfData.bookmakers.map((b: any) => b.spread_odds).filter((v: any) => v !== null);
-      const totals = secondHalfData.bookmakers.map((b: any) => b.total).filter((v: any) => v !== null);
-      const overOdds = secondHalfData.bookmakers.map((b: any) => b.over_odds).filter((v: any) => v !== null);
+      const homeMLs = secondHalfData.bookmakers.map((b: any) => b.home_moneyline).filter((v: any) => typeof v === 'number');
+      const awayMLs = secondHalfData.bookmakers.map((b: any) => b.away_moneyline).filter((v: any) => typeof v === 'number');
+      const spreads = secondHalfData.bookmakers.map((b: any) => b.spread).filter((v: any) => typeof v === 'number');
+      const spreadOdds = secondHalfData.bookmakers.map((b: any) => b.spread_odds).filter((v: any) => typeof v === 'number');
+      const totals = secondHalfData.bookmakers.map((b: any) => b.total).filter((v: any) => typeof v === 'number');
+      const overOdds = secondHalfData.bookmakers.map((b: any) => b.over_odds).filter((v: any) => typeof v === 'number');
       
       secondHalfData.consensus.home_ml = calcAvg(homeMLs);
       secondHalfData.consensus.away_ml = calcAvg(awayMLs);
