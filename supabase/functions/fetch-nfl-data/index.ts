@@ -483,9 +483,16 @@ serve(async (req) => {
           normalizedStatus = 'Halftime';
         }
         
+        // Extract date in local timezone to avoid UTC conversion issues
+        const gameDateTime = new Date(game.date);
+        const year = gameDateTime.getFullYear();
+        const month = String(gameDateTime.getMonth() + 1).padStart(2, '0');
+        const day = String(gameDateTime.getDate()).padStart(2, '0');
+        const localGameDate = `${year}-${month}-${day}`;
+        
         const snapshot = {
           game_id: game.id,
-          game_date: new Date(game.date).toISOString().split('T')[0],
+          game_date: localGameDate,
           game_start_time: game.date,
           home_team: homeTeam.team.displayName,
           away_team: awayTeam.team.displayName,
