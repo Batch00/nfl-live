@@ -3,9 +3,9 @@ project_id = "tjazosfjsxqaaspwsgal"
 [functions.fetch-nfl-data]
 verify_jwt = false
 
-# Run every minute to capture live game data and halftime snapshots
+# Run every 5 minutes during NFL game hours
 [functions.fetch-nfl-data.cron]
-schedule = "* * * * *"
+schedule = "*/5 * * * *"
 
 [functions.export-game-data]
 verify_jwt = true
@@ -16,8 +16,6 @@ verify_jwt = true
 [functions.halftime-emailer]
 verify_jwt = false
 
-# Run every minute during NFL game days to check for halftime games
-# Cron format: minute hour day month day-of-week
-# This runs every minute
+# Run every 5 minutes during NFL game hours
 [functions.halftime-emailer.cron]
-schedule = "* * * * *"
+schedule = "*/5 * * * *"

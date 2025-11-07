@@ -290,6 +290,41 @@ serve(async (req) => {
   }
 
   try {
+    // Check if we're in NFL game hours (smart scheduling)
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0=Sunday, 1=Monday, 4=Thursday, 5=Friday, 2=Tuesday
+    const hourUTC = now.getUTCHours();
+    
+    // NFL games typically run:
+    // Thursday night: 00:00-04:00 UTC Friday (Thu 8pm-12am ET)
+    // Sunday: 17:00-04:00 UTC Sunday/Monday (Sun 1pm-12am ET)
+    // Monday night: 00:00-04:00 UTC Tuesday (Mon 8pm-12am ET)
+    
+    const isGameTime = (
+      // Thursday night (actually Friday 00:00-04:00 UTC)
+      (dayOfWeek === 5 && hourUTC >= 0 && hourUTC < 4) ||
+      // Sunday afternoon/evening (17:00 UTC Sunday - 04:00 UTC Monday)
+      (dayOfWeek === 0 && hourUTC >= 17) ||
+      (dayOfWeek === 1 && hourUTC < 4) ||
+      // Monday night (actually Tuesday 00:00-04:00 UTC)
+      (dayOfWeek === 2 && hourUTC >= 0 && hourUTC < 4)
+    );
+    
+    if (!isGameTime) {
+      console.log(`⏰ Outside NFL game hours (UTC ${hourUTC}:00 on day ${dayOfWeek}) - skipping data fetch to conserve resources`);
+      return new Response(
+        JSON.stringify({ 
+          message: 'Outside NFL game hours', 
+          skipped: true,
+          current_time: now.toISOString() 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      );
+    }
+    
     console.log('Fetching NFL scoreboard from ESPN API...');
     
     // First, fetch ESPN data to check game statuses
