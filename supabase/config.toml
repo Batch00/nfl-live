@@ -3,9 +3,9 @@ project_id = "tjazosfjsxqaaspwsgal"
 [functions.fetch-nfl-data]
 verify_jwt = false
 
-# Run every 5 minutes during NFL game hours
+# Run every minute during NFL game hours (smart scheduling in function checks time)
 [functions.fetch-nfl-data.cron]
-schedule = "*/5 * * * *"
+schedule = "* * * * *"
 
 [functions.export-game-data]
 verify_jwt = true
@@ -16,6 +16,6 @@ verify_jwt = true
 [functions.halftime-emailer]
 verify_jwt = false
 
-# Run every 5 minutes during NFL game hours
+# Run every minute during NFL game hours (smart scheduling in function checks time)
 [functions.halftime-emailer.cron]
-schedule = "*/5 * * * *"
+schedule = "* * * * *"
