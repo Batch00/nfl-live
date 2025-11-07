@@ -30,56 +30,80 @@ interface OddsAPIGame {
   }>;
 }
 
-// Fetch ESPN FPI (Football Power Index) rankings
-// NOTE: ESPN's public FPI API endpoint is not consistently available
-// This function will attempt multiple endpoints and fallback gracefully
+// Fetch FiveThirtyEight NFL ELO ratings as power rankings
+// FiveThirtyEight publishes NFL ELO ratings which serve as objective power rankings
+// Data is updated regularly and publicly available via GitHub
 async function fetchFPIRankings(): Promise<Map<string, any>> {
   const fpiMap = new Map<string, any>();
   
   try {
-    // Try primary FPI endpoint first
-    let fpiResponse = await fetch(
-      'https://site.api.espn.com/apis/site/v2/sports/football/nfl/fpi'
+    // Fetch FiveThirtyEight's NFL ELO data from their GitHub repo
+    const eloResponse = await fetch(
+      'https://raw.githubusercontent.com/fivethirtyeight/nfl-elo-game/master/data/nfl_games.csv'
     );
 
-    // If primary fails, try alternative standings endpoint which may include power rankings
-    if (!fpiResponse.ok) {
-      console.log(`Primary FPI endpoint unavailable (${fpiResponse.status}), trying alternative...`);
-      fpiResponse = await fetch(
-        'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2025/types/2/teams?limit=100'
-      );
-    }
-
-    if (!fpiResponse.ok) {
-      console.warn(`FPI data unavailable - all endpoints returned errors`);
-      console.warn(`⚠️ FPI/Power Rankings will not be included in CSV exports`);
+    if (!eloResponse.ok) {
+      console.warn(`FiveThirtyEight ELO API returned ${eloResponse.status} - Power rankings unavailable`);
       return fpiMap;
     }
 
-    const fpiData = await fpiResponse.json();
+    const csvText = await eloResponse.text();
+    const lines = csvText.split('\n');
     
-    // Parse FPI data - handle both response formats
-    const teams = fpiData.teams || fpiData.items || [];
-    
-    if (teams.length > 0) {
-      for (const team of teams) {
-        const teamAbbr = team.abbreviation || team.team?.abbreviation;
-        if (teamAbbr) {
-          fpiMap.set(teamAbbr.toUpperCase(), {
-            fpi: team.fpi || team.powerIndex || null,
-            fpi_rank: team.rank || team.powerIndexRank || null,
-            projected_wins: team.projectedWins || null,
-            projected_losses: team.projectedLosses || null,
-          });
-        }
-      }
-      console.log(`✅ Fetched power rankings for ${fpiMap.size} teams`);
-    } else {
-      console.warn(`⚠️ No FPI/Power Rankings data available from ESPN API`);
+    // Parse CSV - first line is headers
+    if (lines.length < 2) {
+      console.warn('No ELO data available');
+      return fpiMap;
     }
+    
+    // Get the most recent ELO ratings by team
+    // CSV format: date,season,neutral,playoff,team1,team2,elo1_pre,elo2_pre,elo_prob1,elo_prob2,elo1_post,elo2_post,qbelo1_pre,qbelo2_pre,qb1,qb2,qb1_value_pre,qb2_value_pre,qbelo_prob1,qbelo_prob2,qbelo1_post,qbelo2_post,qb1_game_value,qb2_game_value,qb1_value_post,qb2_value_post,score1,score2,result1
+    const teamEloMap = new Map<string, { elo: number, qbelo: number }>();
+    
+    // Parse backwards from most recent games
+    for (let i = lines.length - 1; i > 0; i--) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const parts = line.split(',');
+      if (parts.length < 12) continue;
+      
+      const team1 = parts[4];
+      const team2 = parts[5];
+      const elo1_post = parseFloat(parts[11]);
+      const elo2_post = parseFloat(parts[12]);
+      const qbelo1_post = parseFloat(parts[21]) || elo1_post;
+      const qbelo2_post = parseFloat(parts[22]) || elo2_post;
+      
+      if (team1 && !teamEloMap.has(team1) && !isNaN(elo1_post)) {
+        teamEloMap.set(team1, { elo: elo1_post, qbelo: qbelo1_post });
+      }
+      if (team2 && !teamEloMap.has(team2) && !isNaN(elo2_post)) {
+        teamEloMap.set(team2, { elo: elo2_post, qbelo: qbelo2_post });
+      }
+      
+      // Stop once we have all 32 teams or processed enough recent games
+      if (teamEloMap.size >= 32 || i < lines.length - 100) break;
+    }
+    
+    // Convert ELO ratings to rankings
+    const sortedTeams = Array.from(teamEloMap.entries())
+      .sort((a, b) => b[1].elo - a[1].elo);
+    
+    sortedTeams.forEach(([team, data], index) => {
+      fpiMap.set(team, {
+        fpi: Math.round(data.elo),
+        fpi_rank: index + 1,
+        qb_adjusted_elo: Math.round(data.qbelo),
+        projected_wins: null,
+        projected_losses: null,
+      });
+    });
+    
+    console.log(`✅ Fetched ELO power rankings for ${fpiMap.size} teams from FiveThirtyEight`);
   } catch (error) {
-    console.warn('Failed to fetch FPI rankings:', error);
-    console.warn(`⚠️ FPI/Power Rankings will not be included in CSV exports`);
+    console.warn('Failed to fetch ELO rankings:', error);
+    console.warn(`⚠️ Power rankings will not be included in CSV exports`);
   }
   
   return fpiMap;

@@ -63,21 +63,23 @@ function generateCSV(game: GameSnapshot): string {
   csv += `Venue,${game.venue || 'N/A'}\n`;
   csv += `Broadcast,${game.broadcast || 'N/A'}\n`;
   
-  // Add FPI (Football Power Index) rankings if available
+  // Add ELO power rankings if available (FiveThirtyEight)
   if (game.home_fpi || game.away_fpi) {
     csv += `\n`;
-    csv += `Power Rankings (FPI)\n`;
+    csv += `Power Rankings (ELO - FiveThirtyEight)\n`;
     if (game.home_fpi) {
-      csv += `Home Team FPI,${game.home_fpi.fpi || 'N/A'}\n`;
-      csv += `Home Team FPI Rank,${game.home_fpi.fpi_rank || 'N/A'}\n`;
-      csv += `Home Team Projected Wins,${game.home_fpi.projected_wins || 'N/A'}\n`;
-      csv += `Home Team Projected Losses,${game.home_fpi.projected_losses || 'N/A'}\n`;
+      csv += `Home Team ELO Rating,${game.home_fpi.fpi || 'N/A'}\n`;
+      csv += `Home Team ELO Rank,${game.home_fpi.fpi_rank || 'N/A'}\n`;
+      if (game.home_fpi.qb_adjusted_elo) {
+        csv += `Home Team QB-Adjusted ELO,${game.home_fpi.qb_adjusted_elo}\n`;
+      }
     }
     if (game.away_fpi) {
-      csv += `Away Team FPI,${game.away_fpi.fpi || 'N/A'}\n`;
-      csv += `Away Team FPI Rank,${game.away_fpi.fpi_rank || 'N/A'}\n`;
-      csv += `Away Team Projected Wins,${game.away_fpi.projected_wins || 'N/A'}\n`;
-      csv += `Away Team Projected Losses,${game.away_fpi.projected_losses || 'N/A'}\n`;
+      csv += `Away Team ELO Rating,${game.away_fpi.fpi || 'N/A'}\n`;
+      csv += `Away Team ELO Rank,${game.away_fpi.fpi_rank || 'N/A'}\n`;
+      if (game.away_fpi.qb_adjusted_elo) {
+        csv += `Away Team QB-Adjusted ELO,${game.away_fpi.qb_adjusted_elo}\n`;
+      }
     }
   }
   
