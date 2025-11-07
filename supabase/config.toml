@@ -20,6 +20,9 @@ verify_jwt = false
 [functions.halftime-emailer.cron]
 schedule = "* * * * *"
 
+[functions.manual-halftime-email]
+verify_jwt = false
+
 [functions.cleanup-old-snapshots]
 verify_jwt = false
 
