@@ -25,6 +25,8 @@ interface GameSnapshot {
   play_by_play: any[];
   game_start_time: string;
   betting_lines?: any;
+  home_fpi?: any;
+  away_fpi?: any;
   created_at: string; // Database timestamp field
 }
 
@@ -60,6 +62,26 @@ function generateCSV(game: GameSnapshot): string {
   csv += `Status,${game.game_status}\n`;
   csv += `Venue,${game.venue || 'N/A'}\n`;
   csv += `Broadcast,${game.broadcast || 'N/A'}\n`;
+  
+  // Add FPI (Football Power Index) rankings if available
+  if (game.home_fpi || game.away_fpi) {
+    csv += `\n`;
+    csv += `Power Rankings (FPI)\n`;
+    if (game.home_fpi) {
+      csv += `Home Team FPI,${game.home_fpi.fpi || 'N/A'}\n`;
+      csv += `Home Team FPI Rank,${game.home_fpi.fpi_rank || 'N/A'}\n`;
+      csv += `Home Team Projected Wins,${game.home_fpi.projected_wins || 'N/A'}\n`;
+      csv += `Home Team Projected Losses,${game.home_fpi.projected_losses || 'N/A'}\n`;
+    }
+    if (game.away_fpi) {
+      csv += `Away Team FPI,${game.away_fpi.fpi || 'N/A'}\n`;
+      csv += `Away Team FPI Rank,${game.away_fpi.fpi_rank || 'N/A'}\n`;
+      csv += `Away Team Projected Wins,${game.away_fpi.projected_wins || 'N/A'}\n`;
+      csv += `Away Team Projected Losses,${game.away_fpi.projected_losses || 'N/A'}\n`;
+    }
+  }
+  
+  csv += `\n`;
   csv += `Export Time,${new Date().toISOString()}\n`;
   csv += `\n`;
   
