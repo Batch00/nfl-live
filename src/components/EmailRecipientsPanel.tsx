@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Mail, Trash2, Plus, Send } from "lucide-react";
+import { Mail, Trash2, Plus } from "lucide-react";
 import { z } from "zod";
 
 interface EmailRecipient {
@@ -33,7 +33,6 @@ const recipientSchema = z.object({
 export const EmailRecipientsPanel = () => {
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
-  const [manualGameId, setManualGameId] = useState("401772944");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -154,44 +153,6 @@ export const EmailRecipientsPanel = () => {
     addRecipient.mutate();
   };
 
-  // Manual email trigger mutation
-  const sendManualEmail = useMutation({
-    mutationFn: async (gameId: string) => {
-      const { data, error } = await supabase.functions.invoke('manual-halftime-email', {
-        body: { game_id: gameId }
-      });
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Email Sent!",
-        description: `Successfully sent halftime report for ${data.game} to ${data.recipients} recipients`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send manual email",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleManualTrigger = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualGameId.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a game ID",
-        variant: "destructive",
-      });
-      return;
-    }
-    sendManualEmail.mutate(manualGameId);
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -286,41 +247,6 @@ export const EmailRecipientsPanel = () => {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Manual Trigger Section */}
-        <div className="space-y-2 p-4 border-2 border-accent/50 rounded-lg bg-accent/10">
-          <h3 className="font-medium flex items-center gap-2">
-            <Send className="h-4 w-4" />
-            Manual Email Trigger
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Manually send a halftime email for a specific game using its Game ID
-          </p>
-          <form onSubmit={handleManualTrigger} className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="gameId">Game ID</Label>
-              <Input
-                id="gameId"
-                type="text"
-                placeholder="401772944"
-                value={manualGameId}
-                onChange={(e) => setManualGameId(e.target.value)}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Example: 401772944 (LV @ DEN). Find game IDs in the Games tab.
-              </p>
-            </div>
-            <Button 
-              type="submit" 
-              disabled={sendManualEmail.isPending}
-              className="w-full bg-gradient-to-r from-primary to-accent"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              {sendManualEmail.isPending ? "Sending..." : "Send Halftime Email"}
-            </Button>
-          </form>
         </div>
 
         <div className="p-4 bg-muted rounded-lg space-y-2">

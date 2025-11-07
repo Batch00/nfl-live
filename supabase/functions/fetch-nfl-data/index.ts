@@ -30,80 +30,40 @@ interface OddsAPIGame {
   }>;
 }
 
-// Fetch FiveThirtyEight NFL ELO ratings as power rankings
-// FiveThirtyEight publishes NFL ELO ratings which serve as objective power rankings
-// Data is updated regularly and publicly available via GitHub
+// Fetch ESPN FPI (Football Power Index) rankings
 async function fetchFPIRankings(): Promise<Map<string, any>> {
   const fpiMap = new Map<string, any>();
   
   try {
-    // Fetch FiveThirtyEight's NFL ELO data from their GitHub repo
-    const eloResponse = await fetch(
-      'https://raw.githubusercontent.com/fivethirtyeight/nfl-elo-game/master/data/nfl_games.csv'
+    // Try ESPN's FPI endpoint - this follows their typical API pattern
+    const fpiResponse = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/football/nfl/fpi'
     );
 
-    if (!eloResponse.ok) {
-      console.warn(`FiveThirtyEight ELO API returned ${eloResponse.status} - Power rankings unavailable`);
+    if (!fpiResponse.ok) {
+      console.warn(`FPI API returned ${fpiResponse.status} - FPI data unavailable`);
       return fpiMap;
     }
 
-    const csvText = await eloResponse.text();
-    const lines = csvText.split('\n');
+    const fpiData = await fpiResponse.json();
     
-    // Parse CSV - first line is headers
-    if (lines.length < 2) {
-      console.warn('No ELO data available');
-      return fpiMap;
-    }
-    
-    // Get the most recent ELO ratings by team
-    // CSV format: date,season,neutral,playoff,team1,team2,elo1_pre,elo2_pre,elo_prob1,elo_prob2,elo1_post,elo2_post,qbelo1_pre,qbelo2_pre,qb1,qb2,qb1_value_pre,qb2_value_pre,qbelo_prob1,qbelo_prob2,qbelo1_post,qbelo2_post,qb1_game_value,qb2_game_value,qb1_value_post,qb2_value_post,score1,score2,result1
-    const teamEloMap = new Map<string, { elo: number, qbelo: number }>();
-    
-    // Parse backwards from most recent games
-    for (let i = lines.length - 1; i > 0; i--) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      const parts = line.split(',');
-      if (parts.length < 12) continue;
-      
-      const team1 = parts[4];
-      const team2 = parts[5];
-      const elo1_post = parseFloat(parts[11]);
-      const elo2_post = parseFloat(parts[12]);
-      const qbelo1_post = parseFloat(parts[21]) || elo1_post;
-      const qbelo2_post = parseFloat(parts[22]) || elo2_post;
-      
-      if (team1 && !teamEloMap.has(team1) && !isNaN(elo1_post)) {
-        teamEloMap.set(team1, { elo: elo1_post, qbelo: qbelo1_post });
+    // Parse FPI data and map by team abbreviation
+    if (fpiData && fpiData.teams) {
+      for (const team of fpiData.teams) {
+        const teamAbbr = team.abbreviation || team.team?.abbreviation;
+        if (teamAbbr) {
+          fpiMap.set(teamAbbr.toUpperCase(), {
+            fpi: team.fpi || null,
+            fpi_rank: team.rank || null,
+            projected_wins: team.projectedWins || null,
+            projected_losses: team.projectedLosses || null,
+          });
+        }
       }
-      if (team2 && !teamEloMap.has(team2) && !isNaN(elo2_post)) {
-        teamEloMap.set(team2, { elo: elo2_post, qbelo: qbelo2_post });
-      }
-      
-      // Stop once we have all 32 teams or processed enough recent games
-      if (teamEloMap.size >= 32 || i < lines.length - 100) break;
+      console.log(`Fetched FPI rankings for ${fpiMap.size} teams`);
     }
-    
-    // Convert ELO ratings to rankings
-    const sortedTeams = Array.from(teamEloMap.entries())
-      .sort((a, b) => b[1].elo - a[1].elo);
-    
-    sortedTeams.forEach(([team, data], index) => {
-      fpiMap.set(team, {
-        fpi: Math.round(data.elo),
-        fpi_rank: index + 1,
-        qb_adjusted_elo: Math.round(data.qbelo),
-        projected_wins: null,
-        projected_losses: null,
-      });
-    });
-    
-    console.log(`✅ Fetched ELO power rankings for ${fpiMap.size} teams from FiveThirtyEight`);
   } catch (error) {
-    console.warn('Failed to fetch ELO rankings:', error);
-    console.warn(`⚠️ Power rankings will not be included in CSV exports`);
+    console.warn('Failed to fetch FPI rankings:', error);
   }
   
   return fpiMap;
