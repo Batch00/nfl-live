@@ -19,3 +19,10 @@ verify_jwt = false
 # Run every minute during NFL game hours (smart scheduling in function checks time)
 [functions.halftime-emailer.cron]
 schedule = "* * * * *"
+
+[functions.cleanup-old-snapshots]
+verify_jwt = false
+
+# Run twice per week (Monday and Friday at 2 AM UTC) to clean up old game snapshots
+[functions.cleanup-old-snapshots.cron]
+schedule = "0 2 * * 1,5"
