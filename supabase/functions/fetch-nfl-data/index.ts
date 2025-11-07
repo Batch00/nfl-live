@@ -341,32 +341,58 @@ serve(async (req) => {
     const espnData = await espnResponse.json();
     console.log(`Found ${espnData.events?.length || 0} games`);
     
+    // Initialize Supabase client first
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Check if any games are at halftime or end of 2nd quarter
-    const hasHalftimeGames = espnData.events?.some((event: any) => {
+    const halftimeGames = espnData.events?.filter((event: any) => {
       const status = event.competitions?.[0]?.status?.type?.description;
       const period = event.competitions?.[0]?.status?.period;
       // Consider halftime if: status is "Halftime", "End of 2nd Quarter", or period is 2 with clock at 0:00
       return status === 'Halftime' || 
              status === 'End of 2nd Quarter' ||
              (period === 2 && event.competitions?.[0]?.status?.displayClock === '0:00');
-    });
+    }) || [];
     
-    // Only fetch odds from TheOddsAPI if there are halftime games
+    // Only fetch odds from TheOddsAPI if there are NEW halftime games without recent TheOddsAPI data
     let oddsMap = new Map<string, any>();
-    if (hasHalftimeGames) {
-      console.log('🏈 Halftime game(s) detected - fetching live odds from TheOddsAPI...');
-      oddsMap = await fetchOddsFromAPI();
+    if (halftimeGames.length > 0) {
+      // Check which halftime games already have recent TheOddsAPI data (within last 3 minutes)
+      const halftimeGameIds = halftimeGames.map((event: any) => event.id);
+      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+      
+      const { data: recentSnapshots } = await supabase
+        .from('game_snapshots')
+        .select('game_id, betting_lines')
+        .in('game_id', halftimeGameIds)
+        .eq('game_status', 'Halftime')
+        .gte('created_at', threeMinutesAgo)
+        .order('created_at', { ascending: false });
+      
+      // Find games that have TheOddsAPI data already
+      const gamesWithOddsData = new Set(
+        recentSnapshots?.filter(snap => 
+          snap.betting_lines && 
+          typeof snap.betting_lines === 'object' && 
+          (snap.betting_lines as any).source === 'TheOddsAPI'
+        ).map(snap => snap.game_id) || []
+      );
+      
+      if (gamesWithOddsData.size === halftimeGames.length) {
+        console.log('ℹ️ All halftime games already have recent TheOddsAPI data - skipping API call to conserve quota');
+      } else {
+        const newHalftimeCount = halftimeGames.length - gamesWithOddsData.size;
+        console.log(`🏈 ${newHalftimeCount} halftime game(s) need odds data - fetching from TheOddsAPI...`);
+        oddsMap = await fetchOddsFromAPI();
+      }
     } else {
       console.log('ℹ️ No halftime games - skipping TheOddsAPI to conserve quota');
     }
     
     // Fetch FPI rankings for all teams
     const fpiMap = await fetchFPIRankings();
-
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const snapshots = [];
 
