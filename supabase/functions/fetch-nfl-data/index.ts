@@ -30,6 +30,45 @@ interface OddsAPIGame {
   }>;
 }
 
+// Fetch ESPN FPI (Football Power Index) rankings
+async function fetchFPIRankings(): Promise<Map<string, any>> {
+  const fpiMap = new Map<string, any>();
+  
+  try {
+    // Try ESPN's FPI endpoint - this follows their typical API pattern
+    const fpiResponse = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/football/nfl/fpi'
+    );
+
+    if (!fpiResponse.ok) {
+      console.warn(`FPI API returned ${fpiResponse.status} - FPI data unavailable`);
+      return fpiMap;
+    }
+
+    const fpiData = await fpiResponse.json();
+    
+    // Parse FPI data and map by team abbreviation
+    if (fpiData && fpiData.teams) {
+      for (const team of fpiData.teams) {
+        const teamAbbr = team.abbreviation || team.team?.abbreviation;
+        if (teamAbbr) {
+          fpiMap.set(teamAbbr.toUpperCase(), {
+            fpi: team.fpi || null,
+            fpi_rank: team.rank || null,
+            projected_wins: team.projectedWins || null,
+            projected_losses: team.projectedLosses || null,
+          });
+        }
+      }
+      console.log(`Fetched FPI rankings for ${fpiMap.size} teams`);
+    }
+  } catch (error) {
+    console.warn('Failed to fetch FPI rankings:', error);
+  }
+  
+  return fpiMap;
+}
+
 // Fetch odds from TheOddsAPI
 async function fetchOddsFromAPI(): Promise<Map<string, any>> {
   const oddsApiKey = Deno.env.get('ODDS_API_KEY');
@@ -320,6 +359,9 @@ serve(async (req) => {
     } else {
       console.log('ℹ️ No halftime games - skipping TheOddsAPI to conserve quota');
     }
+    
+    // Fetch FPI rankings for all teams
+    const fpiMap = await fetchFPIRankings();
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -491,6 +533,10 @@ serve(async (req) => {
         const day = String(gameDateTime.getDate()).padStart(2, '0');
         const localGameDate = `${year}-${month}-${day}`;
         
+        // Get FPI data for both teams
+        const homeFPI = fpiMap.get(homeTeam.team.abbreviation.toUpperCase()) || null;
+        const awayFPI = fpiMap.get(awayTeam.team.abbreviation.toUpperCase()) || null;
+        
         const snapshot = {
           game_id: game.id,
           game_date: localGameDate,
@@ -506,6 +552,8 @@ serve(async (req) => {
           game_status: normalizedStatus,
           home_stats: finalHomeStats,
           away_stats: finalAwayStats,
+          home_fpi: homeFPI,
+          away_fpi: awayFPI,
           venue: competition.venue?.fullName || null,
           broadcast: competition.broadcasts?.[0]?.names?.[0] || null,
           betting_lines: bettingLines,
