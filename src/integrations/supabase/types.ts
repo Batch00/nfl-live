@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       game_snapshots: {
         Row: {
+          away_fpi: Json | null
           away_score: number
           away_stats: Json | null
           away_team: string
@@ -29,6 +30,7 @@ export type Database = {
           game_id: string
           game_start_time: string | null
           game_status: string
+          home_fpi: Json | null
           home_score: number
           home_stats: Json | null
           home_team: string
@@ -40,6 +42,7 @@ export type Database = {
           venue: string | null
         }
         Insert: {
+          away_fpi?: Json | null
           away_score?: number
           away_stats?: Json | null
           away_team: string
@@ -53,6 +56,7 @@ export type Database = {
           game_id: string
           game_start_time?: string | null
           game_status: string
+          home_fpi?: Json | null
           home_score?: number
           home_stats?: Json | null
           home_team: string
@@ -64,6 +68,7 @@ export type Database = {
           venue?: string | null
         }
         Update: {
+          away_fpi?: Json | null
           away_score?: number
           away_stats?: Json | null
           away_team?: string
@@ -77,6 +82,7 @@ export type Database = {
           game_id?: string
           game_start_time?: string | null
           game_status?: string
+          home_fpi?: Json | null
           home_score?: number
           home_stats?: Json | null
           home_team?: string

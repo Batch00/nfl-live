@@ -102,6 +102,26 @@ serve(async (req) => {
     csv += `Status,${data.game_status}\n`;
     csv += `Venue,${data.venue || 'N/A'}\n`;
     csv += `Broadcast,${data.broadcast || 'N/A'}\n`;
+    
+    // Add FPI (Football Power Index) rankings if available
+    if (data.home_fpi || data.away_fpi) {
+      csv += `\n`;
+      csv += `Power Rankings (FPI)\n`;
+      if (data.home_fpi) {
+        csv += `Home Team FPI,${data.home_fpi.fpi || 'N/A'}\n`;
+        csv += `Home Team FPI Rank,${data.home_fpi.fpi_rank || 'N/A'}\n`;
+        csv += `Home Team Projected Wins,${data.home_fpi.projected_wins || 'N/A'}\n`;
+        csv += `Home Team Projected Losses,${data.home_fpi.projected_losses || 'N/A'}\n`;
+      }
+      if (data.away_fpi) {
+        csv += `Away Team FPI,${data.away_fpi.fpi || 'N/A'}\n`;
+        csv += `Away Team FPI Rank,${data.away_fpi.fpi_rank || 'N/A'}\n`;
+        csv += `Away Team Projected Wins,${data.away_fpi.projected_wins || 'N/A'}\n`;
+        csv += `Away Team Projected Losses,${data.away_fpi.projected_losses || 'N/A'}\n`;
+      }
+    }
+    
+    csv += `\n`;
     csv += `Export Time,${new Date().toISOString()}\n`;
     csv += `\n`;
     
