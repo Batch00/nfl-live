@@ -31,39 +31,55 @@ interface OddsAPIGame {
 }
 
 // Fetch ESPN FPI (Football Power Index) rankings
+// NOTE: ESPN's public FPI API endpoint is not consistently available
+// This function will attempt multiple endpoints and fallback gracefully
 async function fetchFPIRankings(): Promise<Map<string, any>> {
   const fpiMap = new Map<string, any>();
   
   try {
-    // Try ESPN's FPI endpoint - this follows their typical API pattern
-    const fpiResponse = await fetch(
+    // Try primary FPI endpoint first
+    let fpiResponse = await fetch(
       'https://site.api.espn.com/apis/site/v2/sports/football/nfl/fpi'
     );
 
+    // If primary fails, try alternative standings endpoint which may include power rankings
     if (!fpiResponse.ok) {
-      console.warn(`FPI API returned ${fpiResponse.status} - FPI data unavailable`);
+      console.log(`Primary FPI endpoint unavailable (${fpiResponse.status}), trying alternative...`);
+      fpiResponse = await fetch(
+        'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2025/types/2/teams?limit=100'
+      );
+    }
+
+    if (!fpiResponse.ok) {
+      console.warn(`FPI data unavailable - all endpoints returned errors`);
+      console.warn(`⚠️ FPI/Power Rankings will not be included in CSV exports`);
       return fpiMap;
     }
 
     const fpiData = await fpiResponse.json();
     
-    // Parse FPI data and map by team abbreviation
-    if (fpiData && fpiData.teams) {
-      for (const team of fpiData.teams) {
+    // Parse FPI data - handle both response formats
+    const teams = fpiData.teams || fpiData.items || [];
+    
+    if (teams.length > 0) {
+      for (const team of teams) {
         const teamAbbr = team.abbreviation || team.team?.abbreviation;
         if (teamAbbr) {
           fpiMap.set(teamAbbr.toUpperCase(), {
-            fpi: team.fpi || null,
-            fpi_rank: team.rank || null,
+            fpi: team.fpi || team.powerIndex || null,
+            fpi_rank: team.rank || team.powerIndexRank || null,
             projected_wins: team.projectedWins || null,
             projected_losses: team.projectedLosses || null,
           });
         }
       }
-      console.log(`Fetched FPI rankings for ${fpiMap.size} teams`);
+      console.log(`✅ Fetched power rankings for ${fpiMap.size} teams`);
+    } else {
+      console.warn(`⚠️ No FPI/Power Rankings data available from ESPN API`);
     }
   } catch (error) {
     console.warn('Failed to fetch FPI rankings:', error);
+    console.warn(`⚠️ FPI/Power Rankings will not be included in CSV exports`);
   }
   
   return fpiMap;
