@@ -62,8 +62,6 @@ function generateCSV(game: GameSnapshot): string {
   csv += `Status,${game.game_status}\n`;
   csv += `Venue,${game.venue || 'N/A'}\n`;
   csv += `Broadcast,${game.broadcast || 'N/A'}\n`;
-  csv += `Home Team Power Rank,${game.home_fpi?.fpi_rank || 'N/A'}\n`;
-  csv += `Away Team Power Rank,${game.away_fpi?.fpi_rank || 'N/A'}\n`;
   
   // Add FPI (Football Power Index) rankings if available
   if (game.home_fpi || game.away_fpi) {
