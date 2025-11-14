@@ -18,23 +18,41 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Delete snapshots older than 2 days using direct SQL for better performance
+    // Delete snapshots older than 2 days in batches to avoid timeouts
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
     
     console.log(`Deleting snapshots older than: ${twoDaysAgo}`);
     
-    // Use raw SQL for bulk delete (more efficient than batch processing)
-    const { data, error } = await supabase.rpc('delete_old_snapshots', {
-      cutoff_date: twoDaysAgo
-    });
+    let totalDeleted = 0;
+    let batchSize = 10000;
+    let hasMore = true;
     
-    if (error) {
-      console.error('Error deleting old snapshots:', error);
-      throw error;
+    // Delete in batches using the database function
+    while (hasMore) {
+      const { data, error } = await supabase.rpc('delete_old_snapshots_batch', {
+        cutoff_date: twoDaysAgo,
+        batch_limit: batchSize
+      });
+      
+      if (error) {
+        console.error('Error deleting batch:', error);
+        break;
+      }
+      
+      const deletedInBatch = data || 0;
+      totalDeleted += deletedInBatch;
+      console.log(`Deleted ${deletedInBatch} snapshots (total: ${totalDeleted})`);
+      
+      // If we deleted fewer than the batch size, we're done
+      if (deletedInBatch < batchSize) {
+        hasMore = false;
+      }
+      
+      // Small delay between batches to avoid overwhelming the database
+      if (hasMore) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
-    
-    const totalDeleted = data || 0;
-    console.log(`Deleted ${totalDeleted} old snapshots`);
 
     // Get final count
     const { count, error: countError } = await supabase
