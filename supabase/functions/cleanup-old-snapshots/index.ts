@@ -18,49 +18,23 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Delete snapshots older than 2 days in batches to avoid timeouts
+    // Delete snapshots older than 2 days using direct SQL for better performance
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
     
-    let totalDeleted = 0;
-    let hasMore = true;
+    console.log(`Deleting snapshots older than: ${twoDaysAgo}`);
     
-    while (hasMore) {
-      // Delete in batches of 1000
-      const { data: oldSnapshots, error: selectError } = await supabase
-        .from('game_snapshots')
-        .select('id')
-        .lt('created_at', twoDaysAgo)
-        .limit(1000);
-
-      if (selectError) {
-        console.error('Error selecting old snapshots:', selectError);
-        break;
-      }
-
-      if (!oldSnapshots || oldSnapshots.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      const ids = oldSnapshots.map(s => s.id);
-      const { error: deleteError } = await supabase
-        .from('game_snapshots')
-        .delete()
-        .in('id', ids);
-
-      if (deleteError) {
-        console.error('Error deleting batch:', deleteError);
-        break;
-      }
-
-      totalDeleted += ids.length;
-      console.log(`Deleted ${ids.length} snapshots (total: ${totalDeleted})`);
-      
-      // If we got fewer than 1000, we're done
-      if (oldSnapshots.length < 1000) {
-        hasMore = false;
-      }
+    // Use raw SQL for bulk delete (more efficient than batch processing)
+    const { data, error } = await supabase.rpc('delete_old_snapshots', {
+      cutoff_date: twoDaysAgo
+    });
+    
+    if (error) {
+      console.error('Error deleting old snapshots:', error);
+      throw error;
     }
+    
+    const totalDeleted = data || 0;
+    console.log(`Deleted ${totalDeleted} old snapshots`);
 
     // Get final count
     const { count, error: countError } = await supabase
