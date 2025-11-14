@@ -31,12 +31,12 @@ interface GameSnapshot {
 }
 
 // Calculate NFL week from game date
-// 2024 NFL Season: Week 1 starts Sept 3 (Tuesday before opening Thursday)
+// 2025 NFL Season: Week 1 starts Sept 4, 2024 (Thursday opening)
 // Each week runs Tuesday-Monday (Tuesday starts new week for scheduling purposes)
 function calculateNFLWeek(gameDate: string): string {
   const date = new Date(gameDate + 'T00:00:00'); // Ensure consistent parsing
   
-  // 2024 NFL Season Week 1 starts Tuesday, Sept 3, 2024
+  // 2025 NFL Season Week 1 starts Tuesday, Sept 3, 2024
   const week1Start = new Date('2024-09-03T00:00:00');
   
   // Calculate days since season start
