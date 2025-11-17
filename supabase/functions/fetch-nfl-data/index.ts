@@ -69,11 +69,25 @@ async function fetchFPIRankings(): Promise<Map<string, any>> {
   return fpiMap;
 }
 
-// Fetch ESPN Standings for power rankings
-// Note: ESPN doesn't have a direct standings API that returns structured data
-// Instead, we extract team records from the scoreboard data
+// Fetch ESPN Standings and calculate rankings
+// Note: ESPN doesn't provide rankings directly, so we calculate them based on win percentage
 async function fetchStandings(espnData: any): Promise<Map<string, any>> {
   const standingsMap = new Map<string, any>();
+  const teamsByConference = new Map<string, any[]>();
+  
+  // NFL team abbreviations mapped to conferences
+  const teamConferences: { [key: string]: string } = {
+    // AFC
+    'BAL': 'AFC', 'BUF': 'AFC', 'CIN': 'AFC', 'CLE': 'AFC',
+    'DEN': 'AFC', 'HOU': 'AFC', 'IND': 'AFC', 'JAX': 'AFC',
+    'KC': 'AFC', 'LV': 'AFC', 'LAC': 'AFC', 'MIA': 'AFC',
+    'NE': 'AFC', 'NYJ': 'AFC', 'PIT': 'AFC', 'TEN': 'AFC',
+    // NFC
+    'ARI': 'NFC', 'ATL': 'NFC', 'CAR': 'NFC', 'CHI': 'NFC',
+    'DAL': 'NFC', 'DET': 'NFC', 'GB': 'NFC', 'LAR': 'NFC',
+    'MIN': 'NFC', 'NO': 'NFC', 'NYG': 'NFC', 'PHI': 'NFC',
+    'SEA': 'NFC', 'SF': 'NFC', 'TB': 'NFC', 'WSH': 'NFC'
+  };
   
   try {
     // Extract team records from the game data
@@ -84,43 +98,69 @@ async function fetchStandings(espnData: any): Promise<Map<string, any>> {
         
         for (const competitor of competition.competitors) {
           const team = competitor.team;
-          const teamAbbr = team?.abbreviation;
+          const teamAbbr = team?.abbreviation?.toUpperCase();
           
           if (teamAbbr && competitor.records) {
             // Find overall record
             const overallRecord = competitor.records.find((r: any) => r.type === 'total');
             if (overallRecord) {
-              const wins = parseInt(overallRecord.summary.split('-')[0]) || 0;
-              const losses = parseInt(overallRecord.summary.split('-')[1]) || 0;
-              const ties = parseInt(overallRecord.summary.split('-')[2]) || 0;
+              const recordParts = overallRecord.summary.split('-');
+              const wins = parseInt(recordParts[0]) || 0;
+              const losses = parseInt(recordParts[1]) || 0;
+              const ties = parseInt(recordParts[2]) || 0;
               
-              // Calculate points differential if available in stats
-              let differential = 'N/A';
-              if (competitor.statistics) {
-                const pointsFor = competitor.statistics.find((s: any) => s.name === 'points')?.value || 0;
-                const pointsAgainst = competitor.statistics.find((s: any) => s.name === 'pointsAgainst')?.value || 0;
-                if (pointsFor && pointsAgainst) {
-                  const diff = pointsFor - pointsAgainst;
-                  differential = diff > 0 ? `+${diff}` : diff.toString();
-                }
-              }
+              // Calculate win percentage
+              const totalGames = wins + losses + ties;
+              const winPct = totalGames > 0 ? (wins + (ties * 0.5)) / totalGames : 0;
               
-              // Use current ranking or calculate from record
-              const rank = competitor.currentRank || 'N/A';
+              // Get conference from mapping
+              const conference = teamConferences[teamAbbr] || 'Unknown';
               
-              standingsMap.set(teamAbbr.toUpperCase(), {
-                rank: rank,
+              const teamData = {
+                abbr: teamAbbr,
+                conference: conference,
                 record: overallRecord.summary,
                 wins: wins,
                 losses: losses,
-                ties: ties || 0,
-                differential: differential,
-              });
+                ties: ties,
+                winPct: winPct,
+                differential: 0 // Will be calculated if available
+              };
+              
+              // Group by conference for ranking calculation
+              const confKey = teamData.conference;
+              if (!teamsByConference.has(confKey)) {
+                teamsByConference.set(confKey, []);
+              }
+              const confTeams = teamsByConference.get(confKey);
+              if (confTeams) {
+                confTeams.push(teamData);
+              }
             }
           }
         }
       }
-      console.log(`Extracted standings for ${standingsMap.size} teams from scoreboard data`);
+      
+      // Calculate rankings within each conference
+      for (const [conference, teams] of teamsByConference) {
+        // Sort by win percentage (descending)
+        teams.sort((a: any, b: any) => b.winPct - a.winPct);
+        
+        // Assign ranks
+        teams.forEach((team: any, index: number) => {
+          const rank = index + 1;
+          standingsMap.set(team.abbr, {
+            rank: `${rank} (${conference})`,
+            record: team.record,
+            wins: team.wins,
+            losses: team.losses,
+            ties: team.ties,
+            differential: team.differential !== 0 ? (team.differential > 0 ? `+${team.differential}` : team.differential.toString()) : 'N/A',
+          });
+        });
+      }
+      
+      console.log(`Calculated standings and rankings for ${standingsMap.size} teams`);
     }
   } catch (error) {
     console.warn('Failed to extract standings:', error);
