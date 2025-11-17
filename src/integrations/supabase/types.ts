@@ -223,6 +223,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_old_snapshots: { Args: { cutoff_date: string }; Returns: number }
+      delete_old_snapshots_batch: {
+        Args: { batch_limit: number; cutoff_date: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
