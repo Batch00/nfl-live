@@ -30,14 +30,47 @@ interface GameSnapshot {
   created_at: string; // Database timestamp field
 }
 
+// Determine current NFL season year based on date
+// NFL seasons run from September (year N) through February (year N+1)
+// Season is named by the year it starts in
+function getCurrentSeasonYear(): number {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-11
+  
+  // If we're in Jan-July (months 0-6), we're in the previous year's season
+  // If we're in Aug-Dec (months 7-11), we're in the current year's season
+  return currentMonth <= 6 ? currentYear - 1 : currentYear;
+}
+
+// Calculate NFL Week 1 start date for a given season year
+// NFL Week 1 typically starts the Thursday after Labor Day (first Monday in September)
+function getSeasonWeek1Start(seasonYear: number): Date {
+  // Find the first Monday in September (Labor Day)
+  let date = new Date(seasonYear, 8, 1); // September 1st
+  while (date.getDay() !== 1) { // 1 = Monday
+    date.setDate(date.getDate() + 1);
+  }
+  
+  // Add 3 days to get to Thursday after Labor Day
+  date.setDate(date.getDate() + 3);
+  
+  return date;
+}
+
 // Calculate NFL week from game date
-// 2025 NFL Season: Week 1 starts Sept 4, 2025 (Thursday opening)
+// Automatically detects the correct season based on game date
 // Each week runs Thursday-Wednesday for official NFL week numbering
 function calculateNFLWeek(gameDate: string): string {
   const date = new Date(gameDate + 'T00:00:00'); // Ensure consistent parsing
   
-  // 2025 NFL Season Week 1 starts Thursday, Sept 4, 2025
-  const week1Start = new Date('2025-09-04T00:00:00');
+  // Determine which season this game belongs to
+  const gameYear = date.getFullYear();
+  const gameMonth = date.getMonth();
+  const seasonYear = gameMonth <= 6 ? gameYear - 1 : gameYear;
+  
+  // Get Week 1 start for this season
+  const week1Start = getSeasonWeek1Start(seasonYear);
   
   // Calculate days since season start
   const diffTime = date.getTime() - week1Start.getTime();
