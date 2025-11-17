@@ -105,12 +105,10 @@ function generateCSV(game: GameSnapshot): string {
     if (game.home_standings) {
       csv += `Home Team Rank,${game.home_standings.rank || 'N/A'}\n`;
       csv += `Home Team Record,${game.home_standings.record || 'N/A'}\n`;
-      csv += `Home Team Points Differential,${game.home_standings.differential || 'N/A'}\n`;
     }
     if (game.away_standings) {
       csv += `Away Team Rank,${game.away_standings.rank || 'N/A'}\n`;
       csv += `Away Team Record,${game.away_standings.record || 'N/A'}\n`;
-      csv += `Away Team Points Differential,${game.away_standings.differential || 'N/A'}\n`;
     }
   }
   
