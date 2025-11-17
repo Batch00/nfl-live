@@ -70,57 +70,60 @@ async function fetchFPIRankings(): Promise<Map<string, any>> {
 }
 
 // Fetch ESPN Standings for power rankings
-async function fetchStandings(): Promise<Map<string, any>> {
+// Note: ESPN doesn't have a direct standings API that returns structured data
+// Instead, we extract team records from the scoreboard data
+async function fetchStandings(espnData: any): Promise<Map<string, any>> {
   const standingsMap = new Map<string, any>();
   
   try {
-    const standingsResponse = await fetch(
-      'https://site.api.espn.com/apis/site/v2/sports/football/nfl/standings'
-    );
-
-    if (!standingsResponse.ok) {
-      console.warn(`Standings API returned ${standingsResponse.status} - Standings data unavailable`);
-      return standingsMap;
-    }
-
-    const standingsData = await standingsResponse.json();
-    
-    // Parse standings data - ESPN returns teams with their ranks
-    if (standingsData && standingsData.children) {
-      // Process each conference/division
-      for (const conference of standingsData.children) {
-        if (conference.standings && conference.standings.entries) {
-          for (const entry of conference.standings.entries) {
-            const team = entry.team;
-            const teamAbbr = team.abbreviation;
-            
-            if (teamAbbr) {
-              // Extract relevant stats
-              const stats = entry.stats || [];
-              const wins = stats.find((s: any) => s.name === 'wins')?.value || 0;
-              const losses = stats.find((s: any) => s.name === 'losses')?.value || 0;
-              const pointsFor = stats.find((s: any) => s.name === 'pointsFor')?.value || 0;
-              const pointsAgainst = stats.find((s: any) => s.name === 'pointsAgainst')?.value || 0;
-              const differential = pointsFor - pointsAgainst;
-              const rank = stats.find((s: any) => s.name === 'rank')?.value || stats.find((s: any) => s.name === 'playoffSeed')?.value || 'N/A';
+    // Extract team records from the game data
+    if (espnData && espnData.events) {
+      for (const event of espnData.events) {
+        const competition = event.competitions?.[0];
+        if (!competition) continue;
+        
+        for (const competitor of competition.competitors) {
+          const team = competitor.team;
+          const teamAbbr = team?.abbreviation;
+          
+          if (teamAbbr && competitor.records) {
+            // Find overall record
+            const overallRecord = competitor.records.find((r: any) => r.type === 'total');
+            if (overallRecord) {
+              const wins = parseInt(overallRecord.summary.split('-')[0]) || 0;
+              const losses = parseInt(overallRecord.summary.split('-')[1]) || 0;
+              const ties = parseInt(overallRecord.summary.split('-')[2]) || 0;
+              
+              // Calculate points differential if available in stats
+              let differential = 'N/A';
+              if (competitor.statistics) {
+                const pointsFor = competitor.statistics.find((s: any) => s.name === 'points')?.value || 0;
+                const pointsAgainst = competitor.statistics.find((s: any) => s.name === 'pointsAgainst')?.value || 0;
+                if (pointsFor && pointsAgainst) {
+                  const diff = pointsFor - pointsAgainst;
+                  differential = diff > 0 ? `+${diff}` : diff.toString();
+                }
+              }
+              
+              // Use current ranking or calculate from record
+              const rank = competitor.currentRank || 'N/A';
               
               standingsMap.set(teamAbbr.toUpperCase(), {
                 rank: rank,
-                record: `${wins}-${losses}`,
+                record: overallRecord.summary,
                 wins: wins,
                 losses: losses,
-                points_for: pointsFor,
-                points_against: pointsAgainst,
-                differential: differential > 0 ? `+${differential}` : differential.toString(),
+                ties: ties || 0,
+                differential: differential,
               });
             }
           }
         }
       }
-      console.log(`Fetched standings for ${standingsMap.size} teams`);
+      console.log(`Extracted standings for ${standingsMap.size} teams from scoreboard data`);
     }
   } catch (error) {
-    console.warn('Failed to fetch standings:', error);
+    console.warn('Failed to extract standings:', error);
   }
   
   return standingsMap;
@@ -451,8 +454,8 @@ serve(async (req) => {
     // Fetch FPI rankings for all teams
     const fpiMap = await fetchFPIRankings();
     
-    // Fetch standings for all teams
-    const standingsMap = await fetchStandings();
+    // Extract standings from scoreboard data
+    const standingsMap = await fetchStandings(espnData);
 
     const snapshots = [];
 
