@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           away_fpi: Json | null
           away_score: number
+          away_standings: Json | null
           away_stats: Json | null
           away_team: string
           away_team_abbr: string
@@ -32,6 +33,7 @@ export type Database = {
           game_status: string
           home_fpi: Json | null
           home_score: number
+          home_standings: Json | null
           home_stats: Json | null
           home_team: string
           home_team_abbr: string
@@ -44,6 +46,7 @@ export type Database = {
         Insert: {
           away_fpi?: Json | null
           away_score?: number
+          away_standings?: Json | null
           away_stats?: Json | null
           away_team: string
           away_team_abbr: string
@@ -58,6 +61,7 @@ export type Database = {
           game_status: string
           home_fpi?: Json | null
           home_score?: number
+          home_standings?: Json | null
           home_stats?: Json | null
           home_team: string
           home_team_abbr: string
@@ -70,6 +74,7 @@ export type Database = {
         Update: {
           away_fpi?: Json | null
           away_score?: number
+          away_standings?: Json | null
           away_stats?: Json | null
           away_team?: string
           away_team_abbr?: string
@@ -84,6 +89,7 @@ export type Database = {
           game_status?: string
           home_fpi?: Json | null
           home_score?: number
+          home_standings?: Json | null
           home_stats?: Json | null
           home_team?: string
           home_team_abbr?: string

@@ -69,6 +69,63 @@ async function fetchFPIRankings(): Promise<Map<string, any>> {
   return fpiMap;
 }
 
+// Fetch ESPN Standings for power rankings
+async function fetchStandings(): Promise<Map<string, any>> {
+  const standingsMap = new Map<string, any>();
+  
+  try {
+    const standingsResponse = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/football/nfl/standings'
+    );
+
+    if (!standingsResponse.ok) {
+      console.warn(`Standings API returned ${standingsResponse.status} - Standings data unavailable`);
+      return standingsMap;
+    }
+
+    const standingsData = await standingsResponse.json();
+    
+    // Parse standings data - ESPN returns teams with their ranks
+    if (standingsData && standingsData.children) {
+      // Process each conference/division
+      for (const conference of standingsData.children) {
+        if (conference.standings && conference.standings.entries) {
+          for (const entry of conference.standings.entries) {
+            const team = entry.team;
+            const teamAbbr = team.abbreviation;
+            
+            if (teamAbbr) {
+              // Extract relevant stats
+              const stats = entry.stats || [];
+              const wins = stats.find((s: any) => s.name === 'wins')?.value || 0;
+              const losses = stats.find((s: any) => s.name === 'losses')?.value || 0;
+              const pointsFor = stats.find((s: any) => s.name === 'pointsFor')?.value || 0;
+              const pointsAgainst = stats.find((s: any) => s.name === 'pointsAgainst')?.value || 0;
+              const differential = pointsFor - pointsAgainst;
+              const rank = stats.find((s: any) => s.name === 'rank')?.value || stats.find((s: any) => s.name === 'playoffSeed')?.value || 'N/A';
+              
+              standingsMap.set(teamAbbr.toUpperCase(), {
+                rank: rank,
+                record: `${wins}-${losses}`,
+                wins: wins,
+                losses: losses,
+                points_for: pointsFor,
+                points_against: pointsAgainst,
+                differential: differential > 0 ? `+${differential}` : differential.toString(),
+              });
+            }
+          }
+        }
+      }
+      console.log(`Fetched standings for ${standingsMap.size} teams`);
+    }
+  } catch (error) {
+    console.warn('Failed to fetch standings:', error);
+  }
+  
+  return standingsMap;
+}
+
 // Fetch odds from TheOddsAPI
 async function fetchOddsFromAPI(): Promise<Map<string, any>> {
   const oddsApiKey = Deno.env.get('ODDS_API_KEY');
@@ -393,6 +450,9 @@ serve(async (req) => {
     
     // Fetch FPI rankings for all teams
     const fpiMap = await fetchFPIRankings();
+    
+    // Fetch standings for all teams
+    const standingsMap = await fetchStandings();
 
     const snapshots = [];
 
@@ -563,6 +623,10 @@ serve(async (req) => {
         const homeFPI = fpiMap.get(homeTeam.team.abbreviation.toUpperCase()) || null;
         const awayFPI = fpiMap.get(awayTeam.team.abbreviation.toUpperCase()) || null;
         
+        // Get standings data for both teams
+        const homeStandings = standingsMap.get(homeTeam.team.abbreviation.toUpperCase()) || null;
+        const awayStandings = standingsMap.get(awayTeam.team.abbreviation.toUpperCase()) || null;
+        
         const snapshot = {
           game_id: game.id,
           game_date: localGameDate,
@@ -580,6 +644,8 @@ serve(async (req) => {
           away_stats: finalAwayStats,
           home_fpi: homeFPI,
           away_fpi: awayFPI,
+          home_standings: homeStandings,
+          away_standings: awayStandings,
           venue: competition.venue?.fullName || null,
           broadcast: competition.broadcasts?.[0]?.names?.[0] || null,
           betting_lines: bettingLines,
