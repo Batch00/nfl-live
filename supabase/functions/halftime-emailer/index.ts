@@ -96,6 +96,22 @@ function generateCSV(game: GameSnapshot): string {
   csv += `Venue,${game.venue || 'N/A'}\n`;
   csv += `Broadcast,${game.broadcast || 'N/A'}\n`;
   
+  // Add team standings/rankings if available
+  if (game.home_standings || game.away_standings) {
+    csv += `\n`;
+    csv += `Team Rankings (ESPN Standings)\n`;
+    if (game.home_standings) {
+      csv += `Home Team Rank,${game.home_standings.rank || 'N/A'}\n`;
+      csv += `Home Team Record,${game.home_standings.record || 'N/A'}\n`;
+      csv += `Home Team Points Differential,${game.home_standings.differential || 'N/A'}\n`;
+    }
+    if (game.away_standings) {
+      csv += `Away Team Rank,${game.away_standings.rank || 'N/A'}\n`;
+      csv += `Away Team Record,${game.away_standings.record || 'N/A'}\n`;
+      csv += `Away Team Points Differential,${game.away_standings.differential || 'N/A'}\n`;
+    }
+  }
+  
   // Add FPI (Football Power Index) rankings if available
   if (game.home_fpi || game.away_fpi) {
     csv += `\n`;
