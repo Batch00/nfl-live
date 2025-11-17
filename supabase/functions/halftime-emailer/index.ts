@@ -27,6 +27,8 @@ interface GameSnapshot {
   betting_lines?: any;
   home_fpi?: any;
   away_fpi?: any;
+  home_standings?: any;
+  away_standings?: any;
   created_at: string; // Database timestamp field
 }
 
