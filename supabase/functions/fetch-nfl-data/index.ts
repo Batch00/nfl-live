@@ -459,24 +459,27 @@ serve(async (req) => {
     // Only fetch odds from TheOddsAPI if there are NEW halftime games without recent TheOddsAPI data
     let oddsMap = new Map<string, any>();
     if (halftimeGames.length > 0) {
-      // Check which halftime games already have recent TheOddsAPI data (within last 3 minutes)
+      // Check which halftime games already have recent TheOddsAPI data (within last 1 minute)
+      // Using 1 minute window since fetch runs every minute - this ensures we get odds on first halftime detection
       const halftimeGameIds = halftimeGames.map((event: any) => event.id);
-      const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
       
       const { data: recentSnapshots } = await supabase
         .from('game_snapshots')
         .select('game_id, betting_lines')
         .in('game_id', halftimeGameIds)
         .eq('game_status', 'Halftime')
-        .gte('created_at', threeMinutesAgo)
+        .gte('created_at', oneMinuteAgo)
         .order('created_at', { ascending: false });
       
-      // Find games that have TheOddsAPI data already
+      // Find games that have TheOddsAPI data already (must have source field and it must be 'TheOddsAPI')
       const gamesWithOddsData = new Set(
         recentSnapshots?.filter(snap => 
           snap.betting_lines && 
           typeof snap.betting_lines === 'object' && 
-          (snap.betting_lines as any).source === 'TheOddsAPI'
+          (snap.betting_lines as any).source === 'TheOddsAPI' &&
+          (snap.betting_lines as any).bookmakers && 
+          (snap.betting_lines as any).bookmakers.length > 0
         ).map(snap => snap.game_id) || []
       );
       
