@@ -658,11 +658,13 @@ serve(async (req) => {
           normalizedStatus = 'Halftime';
         }
         
-        // Extract date in local timezone to avoid UTC conversion issues
+        // Extract date in Central Time (America/Chicago)
+        // Central Time is UTC-6 (CST) or UTC-5 (CDT)
         const gameDateTime = new Date(game.date);
-        const year = gameDateTime.getFullYear();
-        const month = String(gameDateTime.getMonth() + 1).padStart(2, '0');
-        const day = String(gameDateTime.getDate()).padStart(2, '0');
+        const centralDateTime = new Date(gameDateTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const year = centralDateTime.getFullYear();
+        const month = String(centralDateTime.getMonth() + 1).padStart(2, '0');
+        const day = String(centralDateTime.getDate()).padStart(2, '0');
         const localGameDate = `${year}-${month}-${day}`;
         
         // Get FPI data for both teams
