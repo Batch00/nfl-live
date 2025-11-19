@@ -84,6 +84,21 @@ function calculateNFLWeek(gameDate: string): string {
   return String(week).padStart(2, '0');
 }
 
+// Helper function to format date/time in Central Time
+function formatCentralTime(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleString('en-US', { 
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+}
+
 // Generate CSV content from play-by-play data
 function generateCSV(game: GameSnapshot): string {
   let csv = '';
@@ -92,6 +107,8 @@ function generateCSV(game: GameSnapshot): string {
   csv += `Game Metadata\n`;
   csv += `Game ID,${game.game_id}\n`;
   csv += `Date,${game.game_date}\n`;
+  csv += `Game Start Time (Central),${formatCentralTime(game.game_start_time)}\n`;
+  csv += `Export Time (Central),${formatCentralTime(game.created_at)}\n`;
   csv += `Home Team,${game.home_team}\n`;
   csv += `Away Team,${game.away_team}\n`;
   csv += `Status,${game.game_status}\n`;
